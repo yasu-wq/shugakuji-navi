@@ -4,7 +4,9 @@ import requests
 from PIL import Image, ImageDraw, ImageFont
 import io
 
+# -----------------------------------------------------------------
 # ページの設定
+# -----------------------------------------------------------------
 st.set_page_config(
     page_title="就学時健康診断 案内ナビ",
     page_icon="🏫",
@@ -37,7 +39,7 @@ def generate_map_image(map_grid):
     image = Image.new("RGB", (img_w, img_h), color=(250, 250, 250))
     draw = ImageDraw.Draw(image)
     
-    # フォント指定（標準フォントを使用）
+    # 標準フォントを使用
     font = ImageFont.load_default()
 
     for r_idx, row in enumerate(map_grid):
@@ -70,8 +72,9 @@ def generate_map_image(map_grid):
             
     return image
 
-#@st.cache_data(ttl=1)  # キャッシュを1秒にして毎回最新データを取得する
+
 def load_data_and_map():
+    # バックアップ用デフォルトデータ
     default_data = pd.DataFrame([
         {"step": 1, "item_name": "受付案内", "venue": "南校舎2F廊下 または ひまわり 1", "details": "事前に送付された「お知らせ（桜色）」と「健康診断票（黄色）」をご用意ください。", "type": "reception"},
         {"step": 2, "item_name": "視力検査", "venue": "家庭科室", "details": "お子様と一緒に検査を受けてください。", "type": "test"},
@@ -92,13 +95,26 @@ def load_data_and_map():
             if isinstance(res, dict):
                 df_settings = pd.DataFrame(res.get("settings", []))
                 map_grid = res.get("map_design", [])
+                
+                # マップ画像の生成
                 if map_grid:
                     map_img = generate_map_image(map_grid)
-                return df_settings, map_img
+                
+                # スプレッドシートのデータが存在する場合はそれを返す
+                if not df_settings.empty:
+                    # C列・D列などの欠損値補正
+                    for col in ["venue", "details"]:
+                        if col not in df_settings.columns:
+                            df_settings[col] = ""
+                    df_settings = df_settings.fillna("")
+                    return df_settings, map_img
+
     except Exception as e:
-        pass
+        st.warning(f"スプレッドシート連動エラー: {e}")
+
     return default_data, map_img
 
+# データのロード実行
 df_settings, generated_map_img = load_data_and_map()
 
 # -----------------------------------------------------------------
