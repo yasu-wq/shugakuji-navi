@@ -22,53 +22,67 @@ if "step" not in st.session_state:
     st.session_state.step = 1
 
 # -----------------------------------------------------------------
+# HEXカラー(#RRGGBB)をRGBタプルに変換するヘルパー関数
+# -----------------------------------------------------------------
+def hex_to_rgb(hex_str, default_color=(235, 243, 250)):
+    if not hex_str or not isinstance(hex_str, str) or not hex_str.startswith("#"):
+        return default_color
+    try:
+        hex_str = hex_str.lstrip("#")
+        if len(hex_str) == 6:
+            return tuple(int(hex_str[i:i+2], 16) for i in (0, 2, 4))
+    except Exception:
+        pass
+    return default_color
+
+# -----------------------------------------------------------------
 # データ読み込み & マップ画像自動生成機能
 # -----------------------------------------------------------------
-def generate_map_image(map_grid):
-    """スプレッドシートの文字配置（2次元配列）からマップ画像を自動作成する"""
+def generate_map_image(map_grid, map_backgrounds=None):
+    """スプレッドシートの文字配置および背景色からマップ画像を自動作成する"""
     if not map_grid:
         return None
     
     rows = len(map_grid)
     cols = max(len(r) for r in map_grid)
     
-    cell_w, cell_h = 70, 45
+    cell_w, cell_h = 75, 45
     img_w, img_h = cols * cell_w + 20, rows * cell_h + 20
     
     # 背景が白い画像を作成
-    image = Image.new("RGB", (img_w, img_h), color=(250, 250, 250))
+    image = Image.new("RGB", (img_w, img_h), color=(255, 255, 255))
     draw = ImageDraw.Draw(image)
-    
-    # 標準フォントを使用
     font = ImageFont.load_default()
 
     for r_idx, row in enumerate(map_grid):
         for c_idx, cell in enumerate(row):
-            text = str(cell).strip()
-            if not text:
-                continue
+            text = str(cell).strip() if cell is not None else ""
             
             x1 = c_idx * cell_w + 10
             y1 = r_idx * cell_h + 10
-            x2 = x1 + cell_w - 2
-            y2 = y1 + cell_h - 2
+            x2 = x1 + cell_w
+            y2 = y1 + cell_h
             
-            # マップ要素に応じた色分け
-            bg_color = (235, 243, 250) # デフォルト（薄青）
-            border_color = (180, 200, 220)
+            # スプレッドシートから送信された背景色の適用（なければキーワードによる自動判定）
+            bg_color = None
+            if map_backgrounds and r_idx < len(map_backgrounds) and c_idx < len(map_backgrounds[r_idx]):
+                bg_color = hex_to_rgb(map_backgrounds[r_idx][c_idx], None)
             
-            if any(k in text for k in ["受付", "検診", "検査", "相談", "通知"]):
-                bg_color = (255, 230, 230) # 健診・受付会場（薄ピンク）
-                border_color = (240, 150, 150)
-            elif any(k in text for k in ["階段", "WC", "廊下", "↑", "↓", "←", "→"]):
-                bg_color = (240, 240, 240) # 共有施設・矢印（グレー）
-                border_color = (200, 200, 200)
+            if not bg_color:
+                bg_color = (250, 250, 250) # デフォルト（極薄グレー）
+                if any(k in text for k in ["受付", "検診", "検査", "相談", "通知"]):
+                    bg_color = (255, 230, 230) # 薄ピンク
+                elif any(k in text for k in ["階段", "WC", "廊下", "↑", "↓", "←", "→"]):
+                    bg_color = (240, 240, 240) # 薄グレー
 
-            # 枠線とセルの描画
+            border_color = (180, 180, 180) # 共通罫線（明確な枠線描画）
+
+            # セル背景と罫線の描画
             draw.rectangle([x1, y1, x2, y2], fill=bg_color, outline=border_color, width=1)
             
             # 文字描画
-            draw.text((x1 + 6, y1 + 12), text[:5], fill=(30, 30, 30), font=font)
+            if text:
+                draw.text((x1 + 6, y1 + 14), text[:5], fill=(20, 20, 20), font=font)
             
     return image
 
@@ -95,14 +109,14 @@ def load_data_and_map():
             if isinstance(res, dict):
                 df_settings = pd.DataFrame(res.get("settings", []))
                 map_grid = res.get("map_design", [])
+                map_bg = res.get("map_backgrounds", None)
                 
                 # マップ画像の生成
                 if map_grid:
-                    map_img = generate_map_image(map_grid)
+                    map_img = generate_map_image(map_grid, map_bg)
                 
                 # スプレッドシートのデータが存在する場合はそれを返す
                 if not df_settings.empty:
-                    # C列・D列などの欠損値補正
                     for col in ["venue", "details"]:
                         if col not in df_settings.columns:
                             df_settings[col] = ""
