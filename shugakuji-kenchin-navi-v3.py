@@ -29,7 +29,7 @@ def hex_to_rgb(hex_str, default_color=(255, 255, 255)):
         pass
     return default_color
 
-def generate_map_image(map_grid, map_bg=None, map_halign=None, map_valign=None, merged_ranges=None, row_heights=None, col_widths=None):
+def generate_map_image(map_grid, map_bg=None, map_halign=None, map_valign=None, map_borders=None, merged_ranges=None, row_heights=None, col_widths=None):
     if not map_grid:
         return None
 
@@ -83,9 +83,23 @@ def generate_map_image(map_grid, map_bg=None, map_halign=None, map_valign=None, 
             if map_bg and r < len(map_bg) and c < len(map_bg[r]):
                 cell_bg = hex_to_rgb(map_bg[r][c], (255, 255, 255))
 
-            # セル塗りつぶしと枠線（くっきり表示するために暗めの灰色 #666666）
-            draw.rectangle([x1, y1, x2, y2], fill=cell_bg, outline=(102, 102, 102), width=1)
+            # セルの背景塗りつぶし（全枠線一括指定を解除）
+            draw.rectangle([x1, y1, x2, y2], fill=cell_bg)
 
+            # 手動設定された実線罫線のみ各辺ごとに描画
+            if map_borders and r < len(map_borders) and c < len(map_borders[r]):
+                b = map_borders[r][c]
+                border_color = (0, 0, 0)
+                if b.get("top"):
+                    draw.line([(x1, y1), (x2, y1)], fill=border_color, width=1)
+                if b.get("bottom"):
+                    draw.line([(x1, y2), (x2, y2)], fill=border_color, width=1)
+                if b.get("left"):
+                    draw.line([(x1, y1), (x1, y2)], fill=border_color, width=1)
+                if b.get("right"):
+                    draw.line([(x2, y1), (x2, y2)], fill=border_color, width=1)
+
+            # テキスト描画
             text = str(map_grid[r][c]).strip() if map_grid[r][c] is not None else ""
             if text:
                 h_align = map_halign[r][c] if map_halign and r < len(map_halign) and c < len(map_halign[r]) else "center"
