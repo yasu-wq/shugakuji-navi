@@ -1,7 +1,6 @@
 import os
 from PIL import Image, ImageDraw, ImageFont
 
-# 日本語フォント設定（文字化け対策）
 def get_japanese_font(font_size=12):
     font_paths = [
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
@@ -30,7 +29,7 @@ def hex_to_rgb(hex_str, default_color=(255, 255, 255)):
         pass
     return default_color
 
-def generate_map_image(map_grid, map_bg=None, map_halign=None, map_valign=None, merged_ranges=None, map_borders=None, row_heights=None, col_widths=None):
+def generate_map_image(map_grid, map_bg=None, map_halign=None, map_valign=None, merged_ranges=None, row_heights=None, col_widths=None):
     if not map_grid:
         return None
 
@@ -71,7 +70,6 @@ def generate_map_image(map_grid, map_bg=None, map_halign=None, map_valign=None, 
                         if not (r == r_start and c == c_start):
                             render_grid[r][c] = False
 
-    # セルの背景色とベース領域の描画
     for r in range(rows):
         for c in range(cols):
             if not render_grid[r][c]:
@@ -85,9 +83,9 @@ def generate_map_image(map_grid, map_bg=None, map_halign=None, map_valign=None, 
             if map_bg and r < len(map_bg) and c < len(map_bg[r]):
                 cell_bg = hex_to_rgb(map_bg[r][c], (255, 255, 255))
 
-            draw.rectangle([x1, y1, x2, y2], fill=cell_bg, outline=(220, 220, 220), width=1)
+            # セル塗りつぶしと枠線（くっきり表示するために暗めの灰色 #666666）
+            draw.rectangle([x1, y1, x2, y2], fill=cell_bg, outline=(102, 102, 102), width=1)
 
-            # テキスト描画
             text = str(map_grid[r][c]).strip() if map_grid[r][c] is not None else ""
             if text:
                 h_align = map_halign[r][c] if map_halign and r < len(map_halign) and c < len(map_halign[r]) else "center"
@@ -103,24 +101,5 @@ def generate_map_image(map_grid, map_bg=None, map_halign=None, map_valign=None, 
                 ty = y1 + 3 if v_align == "top" else (y2 - text_h - 5 if v_align == "bottom" else y1 + (cell_h - text_h) / 2)
 
                 draw.text((tx, ty), text, fill=(0, 0, 0), font=font)
-
-    # 罫線の正確な上書き描画
-    if map_borders:
-        for r in range(min(rows, len(map_borders))):
-            for c in range(min(cols, len(map_borders[r]))):
-                b = map_borders[r][c]
-                if not b:
-                    continue
-                x1, y1 = col_x[c], row_y[r]
-                x2, y2 = col_x[c+1], row_y[r+1]
-
-                if b.get("top"):
-                    draw.line([(x1, y1), (x2, y1)], fill=hex_to_rgb(b["top"], (0,0,0)), width=2)
-                if b.get("bottom"):
-                    draw.line([(x1, y2), (x2, y2)], fill=hex_to_rgb(b["bottom"], (0,0,0)), width=2)
-                if b.get("left"):
-                    draw.line([(x1, y1), (x1, y2)], fill=hex_to_rgb(b["left"], (0,0,0)), width=2)
-                if b.get("right"):
-                    draw.line([(x2, y1), (x2, y2)], fill=hex_to_rgb(b["right"], (0,0,0)), width=2)
 
     return image
