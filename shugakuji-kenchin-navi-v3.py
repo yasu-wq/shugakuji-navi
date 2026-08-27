@@ -38,10 +38,7 @@ def generate_map_image(map_grid):
     draw = ImageDraw.Draw(image)
     
     # フォント指定（標準フォントを使用）
-    try:
-        font = ImageFont.truetype("arial.ttf", 14)
-    except:
-        font = ImageFont.load_default()
+    font = ImageFont.load_default()
 
     for r_idx, row in enumerate(map_grid):
         for c_idx, cell in enumerate(row):
