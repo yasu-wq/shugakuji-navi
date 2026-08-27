@@ -73,7 +73,7 @@ def generate_map_image(map_grid):
             
     return image
 
-@st.cache_data(ttl=1)  # キャッシュを1秒にして毎回最新データを取得する
+#@st.cache_data(ttl=1)  # キャッシュを1秒にして毎回最新データを取得する
 def load_data_and_map():
     default_data = pd.DataFrame([
         {"step": 1, "item_name": "受付案内", "venue": "南校舎2F廊下 または ひまわり 1", "details": "事前に送付された「お知らせ（桜色）」と「健康診断票（黄色）」をご用意ください。", "type": "reception"},
