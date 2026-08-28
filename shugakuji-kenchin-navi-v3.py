@@ -5,7 +5,7 @@ import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 
 # -----------------------------------------------------------------
-# ページの設定
+# 1. ページの設定
 # -----------------------------------------------------------------
 st.set_page_config(
     page_title="就学時健康診断 案内ナビ",
@@ -22,7 +22,7 @@ if "step" not in st.session_state:
     st.session_state.step = 1
 
 # -----------------------------------------------------------------
-# ヘルパー関数（フォント・カラー）
+# 2. ヘルパー関数（フォント・カラー）
 # -----------------------------------------------------------------
 def get_japanese_font(font_size=12):
     """日本語フォントを取得する"""
@@ -55,7 +55,7 @@ def hex_to_rgb(hex_str, default_color=(255, 255, 255)):
     return default_color
 
 # -----------------------------------------------------------------
-# 高機能マップ画像自動生成機能（手動罫線・セル結合・配置対応）
+# 3. マップ画像自動生成機能（背景塗り→罫線描画の2段階処理で欠落防止）
 # -----------------------------------------------------------------
 def generate_map_image(map_grid, map_bg=None, map_halign=None, map_valign=None, map_borders=None, merged_ranges=None, row_heights=None, col_widths=None):
     if not map_grid:
@@ -99,6 +99,7 @@ def generate_map_image(map_grid, map_bg=None, map_halign=None, map_valign=None, 
                             if not (r == r_start and c == c_start):
                                 render_grid[r][c] = False
 
+    # 【ステップ1】背景色を一括塗る（罫線を消さないため事前に処理）
     for r in range(rows):
         for c in range(cols):
             if not render_grid[r][c]:
@@ -112,22 +113,31 @@ def generate_map_image(map_grid, map_bg=None, map_halign=None, map_valign=None, 
             if map_bg and r < len(map_bg) and c < len(map_bg[r]):
                 cell_bg = hex_to_rgb(map_bg[r][c], (255, 255, 255))
 
-            # セル背景描画
             draw.rectangle([x1, y1, x2, y2], fill=cell_bg)
 
-            # 手動設定された実線罫線のみ描画
+    # 【ステップ2】手動罫線と文字を一括描画（背景の上に重ねる）
+    for r in range(rows):
+        for c in range(cols):
+            if not render_grid[r][c]:
+                continue
+
+            num_r, num_c = merge_info_map.get((r, c), (1, 1))
+            x1, y1 = col_x[c], row_y[r]
+            x2, y2 = col_x[min(c + num_c, cols)], row_y[min(r + num_r, rows)]
+
+            # 手動設定された実線罫線のみ上書き描画
             if map_borders and r < len(map_borders) and c < len(map_borders[r]):
                 b = map_borders[r][c]
                 if isinstance(b, dict):
                     border_color = (0, 0, 0)
                     if b.get("top"):
-                        draw.line([(x1, y1), (x2, y1)], fill=border_color, width=1)
+                        draw.line([(x1, y1), (x2, y1)], fill=border_color, width=2)
                     if b.get("bottom"):
-                        draw.line([(x1, y2), (x2, y2)], fill=border_color, width=1)
+                        draw.line([(x1, y2), (x2, y2)], fill=border_color, width=2)
                     if b.get("left"):
-                        draw.line([(x1, y1), (x1, y2)], fill=border_color, width=1)
+                        draw.line([(x1, y1), (x1, y2)], fill=border_color, width=2)
                     if b.get("right"):
-                        draw.line([(x2, y1), (x2, y2)], fill=border_color, width=1)
+                        draw.line([(x2, y1), (x2, y2)], fill=border_color, width=2)
 
             # テキスト描画
             text = str(map_grid[r][c]).strip() if map_grid[r][c] is not None else ""
@@ -149,10 +159,9 @@ def generate_map_image(map_grid, map_bg=None, map_halign=None, map_valign=None, 
     return image
 
 # -----------------------------------------------------------------
-# データ読み込み処理
+# 4. データ読み込み処理（タイムアウト対策強化）
 # -----------------------------------------------------------------
 def load_data_and_map():
-    # バックアップ用デフォルトデータ
     default_data = pd.DataFrame([
         {"step": 1, "item_name": "受付案内", "venue": "南校舎2F廊下 または ひまわり 1", "details": "事前に送付された「お知らせ（桜色）」と「健康診断票（黄色）」をご用意ください。", "type": "reception"},
         {"step": 2, "item_name": "視力検査", "venue": "家庭科室", "details": "お子様と一緒に検査を受けてください。", "type": "test"},
@@ -169,11 +178,11 @@ def load_data_and_map():
     try:
         gas_url = st.secrets.get("gas_api_url")
         if gas_url:
+            # タイムアウトを 30 秒に延長
             res = requests.get(gas_url, timeout=30).json()
             if isinstance(res, dict):
                 df_settings = pd.DataFrame(res.get("settings", []))
                 
-                # スプレッドシートからのマップ描画用データ一式
                 map_grid = res.get("map_design", [])
                 map_bg = res.get("map_backgrounds", None)
                 map_halign = res.get("map_haligns", None)
@@ -183,7 +192,6 @@ def load_data_and_map():
                 row_heights = res.get("row_heights", None)
                 col_widths = res.get("col_widths", None)
 
-                # マップ画像の生成
                 if map_grid:
                     map_img = generate_map_image(
                         map_grid=map_grid,
@@ -196,7 +204,6 @@ def load_data_and_map():
                         col_widths=col_widths
                     )
 
-                # スプレッドシートのデータが存在する場合はそれを整形
                 if not df_settings.empty:
                     for col in ["venue", "details"]:
                         if col not in df_settings.columns:
@@ -204,6 +211,8 @@ def load_data_and_map():
                     df_settings = df_settings.fillna("")
                     return df_settings, map_img
 
+    except requests.exceptions.Timeout:
+        st.warning("⚠️ スプレッドシートからの応答がタイムアウトしました。デフォルトデータで表示します。")
     except Exception as e:
         st.warning(f"スプレッドシート連動エラー: {e}")
 
@@ -213,7 +222,7 @@ def load_data_and_map():
 df_settings, generated_map_img = load_data_and_map()
 
 # -----------------------------------------------------------------
-# 1. 全体会場配置図（マップ表示）
+# 5. 全体会場配置図（マップ表示）
 # -----------------------------------------------------------------
 with st.expander("🗺️ 【どこでも確認】全体会場配置図を開く / 閉じる", expanded=False):
     if generated_map_img:
@@ -225,7 +234,7 @@ with st.expander("🗺️ 【どこでも確認】全体会場配置図を開く
 st.divider()
 
 # -----------------------------------------------------------------
-# 2. アプリの画面遷移ロジック（ナビ機能）
+# 6. アプリの画面遷移ロジック（ナビ機能）
 # -----------------------------------------------------------------
 steps_names = ["1. 受付", "2. 視力・聴力検査", "3. 医師検診", "4. 教育相談・結果通知", "5. 終了"]
 if st.session_state.step <= 5:
