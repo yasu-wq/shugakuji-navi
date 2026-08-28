@@ -25,7 +25,6 @@ if "step" not in st.session_state:
 # 2. ヘルパー関数（フォント・カラー）
 # -----------------------------------------------------------------
 def get_japanese_font(font_size=12):
-    """日本語フォントを取得する"""
     font_paths = [
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
         "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
@@ -43,7 +42,6 @@ def get_japanese_font(font_size=12):
     return ImageFont.load_default()
 
 def hex_to_rgb(hex_str, default_color=(255, 255, 255)):
-    """HEXカラー(#RRGGBB)をRGBタプルに変換"""
     if not hex_str or not isinstance(hex_str, str) or not hex_str.startswith("#"):
         return default_color
     try:
@@ -55,7 +53,7 @@ def hex_to_rgb(hex_str, default_color=(255, 255, 255)):
     return default_color
 
 # -----------------------------------------------------------------
-# 3. マップ画像自動生成機能（背景塗り→罫線描画の2段階処理で欠落防止）
+# 3. マップ画像自動生成機能（キャッシュ化対象）
 # -----------------------------------------------------------------
 def generate_map_image(map_grid, map_bg=None, map_halign=None, map_valign=None, map_borders=None, merged_ranges=None, row_heights=None, col_widths=None):
     if not map_grid:
@@ -99,7 +97,7 @@ def generate_map_image(map_grid, map_bg=None, map_halign=None, map_valign=None, 
                             if not (r == r_start and c == c_start):
                                 render_grid[r][c] = False
 
-    # 【ステップ1】背景色を一括塗る（罫線を消さないため事前に処理）
+    # 【ステップ1】背景色塗りを先行実行
     for r in range(rows):
         for c in range(cols):
             if not render_grid[r][c]:
@@ -115,7 +113,7 @@ def generate_map_image(map_grid, map_bg=None, map_halign=None, map_valign=None, 
 
             draw.rectangle([x1, y1, x2, y2], fill=cell_bg)
 
-    # 【ステップ2】手動罫線と文字を一括描画（背景の上に重ねる）
+    # 【ステップ2】手動罫線とテキストの描画
     for r in range(rows):
         for c in range(cols):
             if not render_grid[r][c]:
@@ -125,7 +123,6 @@ def generate_map_image(map_grid, map_bg=None, map_halign=None, map_valign=None, 
             x1, y1 = col_x[c], row_y[r]
             x2, y2 = col_x[min(c + num_c, cols)], row_y[min(r + num_r, rows)]
 
-            # 手動設定された実線罫線のみ上書き描画
             if map_borders and r < len(map_borders) and c < len(map_borders[r]):
                 b = map_borders[r][c]
                 if isinstance(b, dict):
@@ -139,7 +136,6 @@ def generate_map_image(map_grid, map_bg=None, map_halign=None, map_valign=None, 
                     if b.get("right"):
                         draw.line([(x2, y1), (x2, y2)], fill=border_color, width=2)
 
-            # テキスト描画
             text = str(map_grid[r][c]).strip() if map_grid[r][c] is not None else ""
             if text:
                 h_align = map_halign[r][c] if map_halign and r < len(map_halign) and c < len(map_halign[r]) else "center"
@@ -159,8 +155,18 @@ def generate_map_image(map_grid, map_bg=None, map_halign=None, map_valign=None, 
     return image
 
 # -----------------------------------------------------------------
-# 4. データ読み込み処理（タイムアウト対策強化）
+# 4. 高速化：データをキャッシュ(高速保存)して読み込む関数
 # -----------------------------------------------------------------
+@st.cache_data(ttl=600)  # 10分間キャッシュ（GASとの通信をスキップ）
+def fetch_gas_data():
+    gas_url = st.secrets.get("gas_api_url")
+    if gas_url:
+        try:
+            return requests.get(gas_url, timeout=30).json()
+        except Exception as e:
+            return None
+    return None
+
 def load_data_and_map():
     default_data = pd.DataFrame([
         {"step": 1, "item_name": "受付案内", "venue": "南校舎2F廊下 または ひまわり 1", "details": "事前に送付された「お知らせ（桜色）」と「健康診断票（黄色）」をご用意ください。", "type": "reception"},
@@ -174,47 +180,39 @@ def load_data_and_map():
         {"step": 4, "item_name": "結果通知", "venue": "ひまわり 3", "details": "【全員必須】クリアファイルと健康診断票を提出してください。", "type": "final"}
     ])
 
+    res = fetch_gas_data()
     map_img = None
-    try:
-        gas_url = st.secrets.get("gas_api_url")
-        if gas_url:
-            # タイムアウトを 30 秒に延長
-            res = requests.get(gas_url, timeout=30).json()
-            if isinstance(res, dict):
-                df_settings = pd.DataFrame(res.get("settings", []))
-                
-                map_grid = res.get("map_design", [])
-                map_bg = res.get("map_backgrounds", None)
-                map_halign = res.get("map_haligns", None)
-                map_valign = res.get("map_valigns", None)
-                map_borders = res.get("map_borders", None)
-                merged_ranges = res.get("map_merged_ranges", None)
-                row_heights = res.get("row_heights", None)
-                col_widths = res.get("col_widths", None)
 
-                if map_grid:
-                    map_img = generate_map_image(
-                        map_grid=map_grid,
-                        map_bg=map_bg,
-                        map_halign=map_halign,
-                        map_valign=map_valign,
-                        map_borders=map_borders,
-                        merged_ranges=merged_ranges,
-                        row_heights=row_heights,
-                        col_widths=col_widths
-                    )
+    if res and isinstance(res, dict):
+        df_settings = pd.DataFrame(res.get("settings", []))
+        
+        map_grid = res.get("map_design", [])
+        map_bg = res.get("map_backgrounds", None)
+        map_halign = res.get("map_haligns", None)
+        map_valign = res.get("map_valigns", None)
+        map_borders = res.get("map_borders", None)
+        merged_ranges = res.get("map_merged_ranges", None)
+        row_heights = res.get("row_heights", None)
+        col_widths = res.get("col_widths", None)
 
-                if not df_settings.empty:
-                    for col in ["venue", "details"]:
-                        if col not in df_settings.columns:
-                            df_settings[col] = ""
-                    df_settings = df_settings.fillna("")
-                    return df_settings, map_img
+        if map_grid:
+            map_img = generate_map_image(
+                map_grid=map_grid,
+                map_bg=map_bg,
+                map_halign=map_halign,
+                map_valign=map_valign,
+                map_borders=map_borders,
+                merged_ranges=merged_ranges,
+                row_heights=row_heights,
+                col_widths=col_widths
+            )
 
-    except requests.exceptions.Timeout:
-        st.warning("⚠️ スプレッドシートからの応答がタイムアウトしました。デフォルトデータで表示します。")
-    except Exception as e:
-        st.warning(f"スプレッドシート連動エラー: {e}")
+        if not df_settings.empty:
+            for col in ["venue", "details"]:
+                if col not in df_settings.columns:
+                    df_settings[col] = ""
+            df_settings = df_settings.fillna("")
+            return df_settings, map_img
 
     return default_data, map_img
 
@@ -301,4 +299,12 @@ elif st.session_state.step == 5:
     st.markdown("お疲れ様でした。気をつけてお帰りください。")
     if st.button("最初の画面に戻る"):
         st.session_state.step = 1
+        st.rerun()
+
+# -----------------------------------------------------------------
+# サイドバー（管理者用：データ再取得ボタン）
+# -----------------------------------------------------------------
+with st.sidebar:
+    if st.button("🔄 マップ・設定を最新に更新"):
+        st.cache_data.clear()
         st.rerun()
