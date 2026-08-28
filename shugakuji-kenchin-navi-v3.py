@@ -169,7 +169,7 @@ def load_data_and_map():
     try:
         gas_url = st.secrets.get("gas_api_url")
         if gas_url:
-            res = requests.get(gas_url, timeout=10).json()
+            res = requests.get(gas_url, timeout=30).json()
             if isinstance(res, dict):
                 df_settings = pd.DataFrame(res.get("settings", []))
                 
