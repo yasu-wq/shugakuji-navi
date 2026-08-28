@@ -19,7 +19,7 @@ if "step" not in st.session_state:
     st.session_state.step = 1
 
 # -----------------------------------------------------------------
-# 2. ヘルパー関数（フォント・カラー）
+# 2. ヘルパー関数（フォント・カラー・マップ描画）
 # -----------------------------------------------------------------
 def get_japanese_font(font_size=12):
     font_paths = [
@@ -50,7 +50,6 @@ def hex_to_rgb(hex_str, default_color=(255, 255, 255)):
     return default_color
 
 def build_map_image(data_json):
-    """データから画像を生成する処理"""
     if not isinstance(data_json, dict):
         return None
         
@@ -101,7 +100,6 @@ def build_map_image(data_json):
                             if not (r == r_s and c == c_s):
                                 render_grid[r][c] = False
 
-    # 背景色の描画
     for r in range(rows):
         for c in range(cols):
             if not render_grid[r][c]:
@@ -112,7 +110,6 @@ def build_map_image(data_json):
             cell_bg = hex_to_rgb(map_bg[r][c]) if map_bg and r < len(map_bg) and c < len(map_bg[r]) else (255, 255, 255)
             draw.rectangle([x1, y1, x2, y2], fill=cell_bg)
 
-    # 罫線とテキストの描画
     for r in range(rows):
         for c in range(cols):
             if not render_grid[r][c]:
@@ -146,29 +143,8 @@ def build_map_image(data_json):
     return image
 
 # -----------------------------------------------------------------
-# 3. グローバルデータ取得＆キャッシュ
+# 3. 超強力データ保護ロジック（リロードされてもGASを叩かない）
 # -----------------------------------------------------------------
-@st.cache_data(ttl=600)
-def fetch_global_data():
-    gas_url = st.secrets.get("gas_api_url")
-    if not gas_url:
-        return None
-    try:
-        res = requests.get(gas_url, timeout=15).json()
-        if isinstance(res, dict) and "settings" in res:
-            return res
-    except Exception:
-        pass
-    return None
-
-@st.cache_data(show_spinner=False)
-def get_cached_map(data_json):
-    return build_map_image(data_json)
-
-# データロード
-raw_data = fetch_global_data()
-
-# データ解析（安全な処理）
 default_settings = pd.DataFrame([
     {"step": 1, "item_name": "受付案内", "venue": "南校舎2F廊下 または ひまわり 1", "details": "事前に送付された「お知らせ（桜色）」と「健康診断票（黄色）」をご用意ください。", "type": "reception"},
     {"step": 2, "item_name": "視力検査", "venue": "家庭科室", "details": "お子様と一緒に検査を受けてください。", "type": "test"},
@@ -181,12 +157,37 @@ default_settings = pd.DataFrame([
     {"step": 4, "item_name": "結果通知", "venue": "ひまわり 3", "details": "【全員必須】クリアファイルと健康診断票を提出してください。", "type": "final"}
 ])
 
-if raw_data and isinstance(raw_data.get("settings"), list) and len(raw_data["settings"]) > 0:
-    df_settings = pd.DataFrame(raw_data["settings"]).fillna("")
-else:
-    df_settings = default_settings
+@st.cache_resource
+def get_persistent_store():
+    """サーバー上に永続的なデータ領域を保持する"""
+    return {"raw_data": None, "df_settings": None, "map_img": None}
 
-generated_map_img = get_cached_map(raw_data)
+store = get_persistent_store()
+
+def load_data_force(force_refresh=False):
+    """データ取得ロジック（一度成功したら二度とGASを叩かない）"""
+    if not force_refresh and store["df_settings"] is not None:
+        return store["df_settings"], store["map_img"]
+
+    gas_url = st.secrets.get("gas_api_url")
+    if gas_url:
+        try:
+            res = requests.get(gas_url, timeout=15).json()
+            if isinstance(res, dict) and "settings" in res and isinstance(res["settings"], list) and len(res["settings"]) > 0:
+                store["raw_data"] = res
+                store["df_settings"] = pd.DataFrame(res["settings"]).fillna("")
+                store["map_img"] = build_map_image(res)
+                return store["df_settings"], store["map_img"]
+        except Exception:
+            pass
+
+    # 通信失敗時で、過去データも無い場合のみデフォルトを採用
+    if store["df_settings"] is None:
+        return default_settings, None
+    return store["df_settings"], store["map_img"]
+
+# データと画像の取得
+df_settings, generated_map_img = load_data_force()
 
 # -----------------------------------------------------------------
 # 4. 画面描画
@@ -275,5 +276,5 @@ elif st.session_state.step == 5:
 # -----------------------------------------------------------------
 with st.sidebar:
     if st.button("🔄 マップ・設定を最新に更新"):
-        st.cache_data.clear()
+        load_data_force(force_refresh=True)
         st.rerun()
