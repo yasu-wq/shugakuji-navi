@@ -14,15 +14,23 @@ st.set_page_config(
     layout="centered",
 )
 
-# ステップ変更時にページ最上部へスクロールするコンポーネント
-components.html(
-    """
-    <script>
-        window.parent.scrollTo({top: 0, behavior: 'smooth'});
-    </script>
-    """,
-    height=0,
-)
+if "step" not in st.session_state:
+    st.session_state.step = 1
+
+if "last_scrolled_step" not in st.session_state:
+    st.session_state.last_scrolled_step = None
+
+# ステップが変更された場合に確実に最上部へスクロールさせるスクリプト
+if st.session_state.last_scrolled_step != st.session_state.step:
+    st.session_state.last_scrolled_step = st.session_state.step
+    components.html(
+        """
+        <script>
+            window.parent.scrollTo({top: 0, behavior: 'instant'});
+        </script>
+        """,
+        height=0,
+    )
 
 # カスタムCSS（デザイン）
 st.markdown("""
@@ -150,9 +158,6 @@ st.markdown("""
 
 # アプリタイトル
 st.title("安小 就学時健診")
-
-if "step" not in st.session_state:
-    st.session_state.step = 1
 
 if "step1_completed" not in st.session_state:
     st.session_state.step1_completed = False
@@ -414,7 +419,10 @@ elif st.session_state.step == 2:
 elif st.session_state.step == 3:
     st.markdown('<p class="sub-step-title">【第3ステップ】</p>', unsafe_allow_html=True)
     st.header("医師による検診")
-    st.write("以下の検診をすべて受診してください。混雑状況を見て空いている会場からお回りください。")
+    st.markdown(
+        '以下の検診をすべて受診してください。<span style="font-size: 1.15rem; font-weight: bold; color: #DC3545;">混雑状況を見て空いている会場からお回りください。</span>', 
+        unsafe_allow_html=True
+    )
     st.write("")
 
     doctors = df_settings[df_settings["type"] == "doctor"]
