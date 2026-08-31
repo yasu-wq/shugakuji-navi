@@ -50,7 +50,7 @@ st.markdown("""
         line-height: 1.4 !important;
     }
 
-    /* 第2ステップ：各検査完了ボタン（タップ前：薄青 / タップ後：赤） */
+    /* 第2・第3ステップ：各検査・検診完了ボタン（タップ前：薄青 / タップ後：赤） */
     div.element-container:has(.test-status-unselected) + div.element-container div.stButton > button {
         background-color: #93C5FD !important; /* 薄めの青 */
         color: #1E3A8A !important;
@@ -76,7 +76,7 @@ st.markdown("""
         background-color: #BD2130 !important;
     }
 
-    /* 第2ステップ：「次のステップへ進む」ボタン（全状態特大サイズ統一） */
+    /* 「次のステップへ進む」ボタン（全状態特大サイズ統一） */
     div.element-container:has(#next-step-btn-container) + div.element-container div.stButton > button {
         font-size: 1.35rem !important;
         font-weight: 800 !important;
@@ -372,7 +372,7 @@ elif st.session_state.step == 2:
         )
         st.write("")
 
-        # ボタン直上の案内テキストを挿入
+        # ボタン直上の案内テキスト
         st.markdown("<b>👇️受診が終わったらタップしてください。</b>", unsafe_allow_html=True)
 
         # ボタンの状態管理用セッションキー
@@ -408,16 +408,60 @@ elif st.session_state.step == 2:
         st.rerun()
 
 elif st.session_state.step == 3:
-    st.header("【第3ステップ】 医師による検診")
+    st.markdown('<p class="sub-step-title">【第3ステップ】</p>', unsafe_allow_html=True)
+    st.header("医師による検診")
     st.write("以下の検診をすべて受診してください。混雑状況を見て空いている会場からお回りください。")
+    st.write("")
+
     doctors = df_settings[df_settings["type"] == "doctor"]
-    checkboxes = {}
+    completed_status_doc = {}
+
     for idx, row in doctors.iterrows():
-        st.markdown(f"**■ {row['item_name']}（会場：{row['venue']}）**")
-        st.write(row['details'])
-        checkboxes[row['item_name']] = st.checkbox(f"{row['item_name']}を受診した", key=f"chk_{idx}")
+        st.divider()
+
+        st.markdown(f"### ■ {row['item_name']}")
+        st.markdown(
+            f'<p><span class="info-label">検診場所：</span><span class="venue-large">{row["venue"]}</span></p>', 
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f'<p><span class="info-label">■ ご案内：</span>{row["details"]}</p>', 
+            unsafe_allow_html=True
+        )
         st.write("")
-    if st.button("次のステップ（教育相談・結果通知）へ進む", disabled=not all(checkboxes.values())):
+
+        # ボタン直上の案内テキスト
+        st.markdown("<b>👇️受診が終わったらタップしてください。</b>", unsafe_allow_html=True)
+
+        # ボタンの状態管理用セッションキー
+        btn_key = f"doc_btn_{idx}"
+        if btn_key not in st.session_state:
+            st.session_state[btn_key] = False
+
+        is_done = st.session_state[btn_key]
+        completed_status_doc[row['item_name']] = is_done
+
+        # CSSで特定のボタンの見た目をターゲットにするアンカー
+        status_class = "test-status-selected" if is_done else "test-status-unselected"
+        st.markdown(f'<div class="{status_class}"></div>', unsafe_allow_html=True)
+
+        # ボタンラベルテキスト（完了/未完了）
+        btn_label = f"✓ {row['item_name']}を受診完了（タップで解除）" if is_done else f"{row['item_name']}を受診した"
+
+        if st.button(btn_label, key=f"btn_doc_act_{idx}"):
+            st.session_state[btn_key] = not is_done
+            st.rerun()
+
+    st.divider()
+    st.write("")
+
+    # 医師検診がすべて受診されているか確認
+    all_doc_checked = all(completed_status_doc.values())
+
+    # ボタン専用スタイルアンカー設定
+    st.markdown('<div id="next-step-btn-container"></div>', unsafe_allow_html=True)
+
+    if st.button("次のステップ（教育相談・結果通知）へ進む", disabled=not all_doc_checked):
         st.session_state.step = 4
         st.rerun()
 
