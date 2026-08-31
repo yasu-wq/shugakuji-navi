@@ -20,7 +20,7 @@ if "step" not in st.session_state:
 if "last_scrolled_step" not in st.session_state:
     st.session_state.last_scrolled_step = None
 
-# 最上部スクロール用のターゲットアンカー要素を最上部に配置
+# 最上部スクロール用のターゲットアンカー要素
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 # ステップが変更された場合に確実に最上部へスクロールさせるスクリプト
@@ -30,10 +30,7 @@ if st.session_state.last_scrolled_step != st.session_state.step:
         """
         <script>
             function scrollToTop() {
-                // 親ウィンドウの最上部へスクロール
                 window.parent.scrollTo({top: 0, left: 0, behavior: 'instant'});
-                
-                // Streamlitのスクロール可能コンテナも最上部へ移動
                 const anchor = window.parent.document.getElementById('top-anchor');
                 if (anchor) {
                     anchor.scrollIntoView({behavior: 'instant', block: 'start'});
@@ -43,8 +40,6 @@ if st.session_state.last_scrolled_step != st.session_state.step:
                     mainContainer.scrollTop = 0;
                 }
             }
-            
-            // レンダリング完了後に確実にスクロールさせるための複数回・遅延実行
             scrollToTop();
             setTimeout(scrollToTop, 50);
             setTimeout(scrollToTop, 150);
@@ -56,6 +51,22 @@ if st.session_state.last_scrolled_step != st.session_state.step:
 # カスタムCSS（デザイン）
 st.markdown("""
     <style>
+    /* 1. 上部の Fork / GitHub アイコンを非表示 */
+    .stAppToolbar, 
+    header[data-testid="stHeader"] {
+        display: none !important;
+    }
+
+    /* 2. 下部の Streamlit フッター（Hosted with Streamlit）を非表示 */
+    footer, 
+    [data-testid="stStatusWidget"],
+    .viewerBadge_container__1S-td,
+    .styles_viewerBadge__1yB5_,
+    #MainMenu {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
     /* 【第1・第2ステップ】などの小さな見出し用スタイル */
     .sub-step-title {
         font-size: 1.1rem !important;
@@ -92,7 +103,7 @@ st.markdown("""
 
     /* 各検査・検診・完了ボタン（タップ前：薄青 / タップ後：赤） */
     div.element-container:has(.test-status-unselected) + div.element-container div.stButton > button {
-        background-color: #93C5FD !important; /* 薄めの青 */
+        background-color: #93C5FD !important;
         color: #1E3A8A !important;
         font-size: 1.25rem !important;
         font-weight: bold !important;
@@ -104,7 +115,7 @@ st.markdown("""
     }
 
     div.element-container:has(.test-status-selected) + div.element-container div.stButton > button {
-        background-color: #DC3545 !important; /* 赤色 */
+        background-color: #DC3545 !important;
         color: #FFFFFF !important;
         font-size: 1.25rem !important;
         font-weight: bold !important;
@@ -125,7 +136,7 @@ st.markdown("""
 
     /* チェック前（無効時）：青色ベース */
     div.element-container:has(#next-step-btn-container) + div.element-container div.stButton > button:disabled {
-        background-color: #93C5FD !important; /* 明るめの青色（無効状態） */
+        background-color: #93C5FD !important;
         color: #FFFFFF !important;
         opacity: 0.7;
         border: none !important;
@@ -133,7 +144,7 @@ st.markdown("""
 
     /* チェック完了後（有効時）：赤色ベース */
     div.element-container:has(#next-step-btn-container) + div.element-container div.stButton > button:not(:disabled) {
-        background-color: #DC3545 !important; /* 目立つ赤色 */
+        background-color: #DC3545 !important;
         color: #FFFFFF !important;
         border: none !important;
         box-shadow: 0 4px 10px rgba(220, 53, 69, 0.3);
