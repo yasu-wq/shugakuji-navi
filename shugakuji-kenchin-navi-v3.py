@@ -102,6 +102,19 @@ st.markdown("""
         background-color: #BD2130 !important;
     }
 
+    /* 「前のステップに戻る」ボタン専用（グレー背景） */
+    div.element-container:has(#back-step-btn-container) + div.element-container div.stButton > button {
+        background-color: #6C757D !important;
+        color: #FFFFFF !important;
+        border: none !important;
+        font-size: 1rem !important;
+        font-weight: bold !important;
+        padding: 0.6rem 1rem !important;
+    }
+    div.element-container:has(#back-step-btn-container) + div.element-container div.stButton > button:hover {
+        background-color: #5A6268 !important;
+    }
+
     /* 未タップ状態（グレーボタン） */
     div.stButton > button[kind="primary"] {
         background-color: #6C757D !important;
@@ -359,6 +372,9 @@ elif st.session_state.step == 2:
         )
         st.write("")
 
+        # ボタン直上の案内テキストを挿入
+        st.markdown("<b>👇️受診が終わったらタップしてください。</b>", unsafe_allow_html=True)
+
         # ボタンの状態管理用セッションキー
         btn_key = f"test_btn_{idx}"
         if btn_key not in st.session_state:
@@ -435,6 +451,7 @@ elif st.session_state.step == 5:
 # -----------------------------------------------------------------
 if st.session_state.step > 1:
     st.write("")
+    st.markdown('<div id="back-step-btn-container"></div>', unsafe_allow_html=True)
     if st.button("⬅️ 前のステップに戻る"):
         st.session_state.step -= 1
         st.rerun()
