@@ -51,20 +51,38 @@ if st.session_state.last_scrolled_step != st.session_state.step:
 # カスタムCSS（デザイン）
 st.markdown("""
     <style>
-    /* 1. 上部の Fork / GitHub アイコンを非表示 */
+    /* 1. 上部ヘッダー・バーの完全非表示 */
     .stAppToolbar, 
-    header[data-testid="stHeader"] {
+    header[data-testid="stHeader"],
+    [data-testid="stHeader"],
+    [data-testid="stDecoration"] {
         display: none !important;
+        height: 0px !important;
     }
 
-    /* 2. 下部の Streamlit フッター（Hosted with Streamlit）を非表示 */
+    /* 2. 上部の余白（パディング）をカット */
+    .main .block-container {
+        padding-top: 1rem !important; /* 上部の無駄な余白を削減 */
+        padding-bottom: 3rem !important;
+    }
+    @media (max-width: 768px) {
+        .main .block-container {
+            padding-top: 0.5rem !important;
+        }
+    }
+
+    /* 3. 下部の Streamlit リンク・バッジ・フッター（丸に紫アイコン／赤地に王冠など）の非表示 */
     footer, 
     [data-testid="stStatusWidget"],
     .viewerBadge_container__1S-td,
     .styles_viewerBadge__1yB5_,
-    #MainMenu {
+    .stAppViewerBadge,
+    [data-testid="stAppViewerBadge"],
+    #MainMenu,
+    iframe[title="streamlit_app"] {
         display: none !important;
         visibility: hidden !important;
+        opacity: 0 !important;
     }
 
     /* 【第1・第2ステップ】などの小さな見出し用スタイル */
