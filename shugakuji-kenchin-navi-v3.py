@@ -51,7 +51,7 @@ if st.session_state.last_scrolled_step != st.session_state.step:
 # カスタムCSS（デザイン）
 st.markdown("""
     <style>
-    /* 1. 上部ヘッダー・バーの完全非表示 */
+    /* 1. 上部ヘッダー・バーの完全非表示と余白カット */
     .stAppToolbar, 
     header[data-testid="stHeader"],
     [data-testid="stHeader"],
@@ -60,9 +60,8 @@ st.markdown("""
         height: 0px !important;
     }
 
-    /* 2. 上部の余白（パディング）をカット */
     .main .block-container {
-        padding-top: 1rem !important; /* 上部の無駄な余白を削減 */
+        padding-top: 1rem !important;
         padding-bottom: 3rem !important;
     }
     @media (max-width: 768px) {
@@ -71,18 +70,29 @@ st.markdown("""
         }
     }
 
-    /* 3. 下部の Streamlit リンク・バッジ・フッター（丸に紫アイコン／赤地に王冠など）の非表示 */
-    footer, 
+    /* 2. 下部の Streamlit バッジ・リンク・ホスト表示の完全非表示＆タップ無効化 */
+    footer,
     [data-testid="stStatusWidget"],
     .viewerBadge_container__1S-td,
     .styles_viewerBadge__1yB5_,
     .stAppViewerBadge,
     [data-testid="stAppViewerBadge"],
+    [data-testid="stHeaderActionElements"],
     #MainMenu,
-    iframe[title="streamlit_app"] {
+    a[href*="streamlit.io"],
+    a[href*="streamlit.app"] {
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
+        pointer-events: none !important;
+    }
+
+    /* 画面右下に固定配置されるViewer Toolbar等を一律で非表示化 */
+    div[class*="viewerBadge"],
+    div[class*="stAppViewerBadge"],
+    div[data-test-script-path] ~ div {
+        display: none !important;
+        pointer-events: none !important;
     }
 
     /* 【第1・第2ステップ】などの小さな見出し用スタイル */
