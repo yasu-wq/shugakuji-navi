@@ -16,7 +16,7 @@ st.set_page_config(
 # カスタムCSS（デザイン）
 st.markdown("""
     <style>
-    /* 【第1ステップ】などの小さな見出し用スタイル */
+    /* 【第1・第2ステップ】などの小さな見出し用スタイル */
     .sub-step-title {
         font-size: 1.1rem !important;
         font-weight: bold;
@@ -24,7 +24,7 @@ st.markdown("""
         margin-bottom: 0px;
     }
     
-    /* 「受付場所」「ご案内」インラインスタイル */
+    /* 「受付場所」「検査場所」「ご案内」インラインスタイル */
     .info-label {
         font-size: 1.1rem;
         font-weight: bold;
@@ -33,6 +33,37 @@ st.markdown("""
         font-size: 1.5rem;
         font-weight: bold;
         color: #1E3A8A;
+    }
+
+    /* 第2ステップ：表（カード枠）スタイリング */
+    .test-card {
+        border: 2px solid #D0D7DE;
+        border-radius: 10px;
+        padding: 16px;
+        margin-bottom: 20px;
+        background-color: #F8FAFC;
+    }
+
+    /* 第2ステップ：大文字＆濃い青色のチェックボックスラベル */
+    .chk-label-large {
+        font-size: 1.35rem !important;
+        font-weight: bold !important;
+        color: #1E3A8A !important;
+        margin-left: 8px;
+    }
+
+    /* チェックボックス全体の拡大調整 */
+    div[data-testid="stCheckbox"] {
+        padding: 6px 0;
+    }
+    div[data-testid="stCheckbox"] label p {
+        font-size: 1.35rem !important;
+        font-weight: bold !important;
+        color: #1E3A8A !important;
+    }
+    div[data-testid="stCheckbox"] svg {
+        width: 28px !important;
+        height: 28px !important;
     }
 
     /* ボタンの基本設定 */
@@ -277,8 +308,6 @@ if st.session_state.step == 1:
     st.markdown("<b>↓受付が済んだらタップしてください。</b>", unsafe_allow_html=True)
     
     btn_type = "secondary" if st.session_state.step1_completed else "primary"
-    
-    # CSSピンポイント指定用のダミーアンカータグ
     st.markdown('<div id="reception-complete-btn"></div>', unsafe_allow_html=True)
     
     if st.button("受付を完了し、番号札とクリアファイルを受け取りました", type=btn_type):
@@ -287,15 +316,35 @@ if st.session_state.step == 1:
         st.rerun()
 
 elif st.session_state.step == 2:
-    st.header("【第2ステップ】 視力・聴力検査")
+    st.markdown('<p class="sub-step-title">【第2ステップ】</p>', unsafe_allow_html=True)
+    st.header("視力・聴力検査")
     st.write("お子様と一緒に以下の検査会場へお回りください。空いている会場からお進みください。")
+    st.write("")
+
     tests = df_settings[df_settings["type"] == "test"]
     checkboxes = {}
+
     for idx, row in tests.iterrows():
-        st.markdown(f"**■ {row['item_name']}（会場：{row['venue']}）**")
-        st.write(row['details'])
-        checkboxes[row['item_name']] = st.checkbox(f"{row['item_name']}を受診した", key=f"chk_{idx}")
-        st.write("")
+        # 各検査項目を表形式のカード枠で区切る
+        with st.container():
+            st.markdown(f"### ■ {row['item_name']}")
+            st.markdown(
+                f'<p><span class="info-label">検査場所：</span><span class="venue-large">{row["venue"]}</span></p>', 
+                unsafe_allow_html=True
+            )
+            st.markdown(
+                f'<p><span class="info-label">■ ご案内：</span>{row["details"]}</p>', 
+                unsafe_allow_html=True
+            )
+            
+            # チェックボックス（文字拡大・濃い青色）
+            checkboxes[row['item_name']] = st.checkbox(
+                f"{row['item_name']}を受診した", 
+                key=f"chk_{idx}"
+            )
+            st.divider()
+
+    st.write("")
     if st.button("次のステップ（医師による検診）へ進む", disabled=not all(checkboxes.values())):
         st.session_state.step = 3
         st.rerun()
