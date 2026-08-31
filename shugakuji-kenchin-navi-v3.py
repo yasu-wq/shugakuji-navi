@@ -20,13 +20,34 @@ if "step" not in st.session_state:
 if "last_scrolled_step" not in st.session_state:
     st.session_state.last_scrolled_step = None
 
+# 最上部スクロール用のターゲットアンカー要素を最上部に配置
+st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
+
 # ステップが変更された場合に確実に最上部へスクロールさせるスクリプト
 if st.session_state.last_scrolled_step != st.session_state.step:
     st.session_state.last_scrolled_step = st.session_state.step
     components.html(
         """
         <script>
-            window.parent.scrollTo({top: 0, behavior: 'instant'});
+            function scrollToTop() {
+                // 親ウィンドウの最上部へスクロール
+                window.parent.scrollTo({top: 0, left: 0, behavior: 'instant'});
+                
+                // Streamlitのスクロール可能コンテナも最上部へ移動
+                const anchor = window.parent.document.getElementById('top-anchor');
+                if (anchor) {
+                    anchor.scrollIntoView({behavior: 'instant', block: 'start'});
+                }
+                const mainContainer = window.parent.document.querySelector('.main');
+                if (mainContainer) {
+                    mainContainer.scrollTop = 0;
+                }
+            }
+            
+            // レンダリング完了後に確実にスクロールさせるための複数回・遅延実行
+            scrollToTop();
+            setTimeout(scrollToTop, 50);
+            setTimeout(scrollToTop, 150);
         </script>
         """,
         height=0,
