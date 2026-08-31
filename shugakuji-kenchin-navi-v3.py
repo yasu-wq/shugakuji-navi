@@ -48,6 +48,49 @@ if st.session_state.last_scrolled_step != st.session_state.step:
         height=0,
     )
 
+# 下部バッジ・王冠アイコン・StreamlitリンクをDOMから物理削除するJavaScript
+st.html("""
+<script>
+    function removeStreamlitBadges() {
+        const selectors = [
+            'a[href*="streamlit.io"]',
+            'a[href*="streamlit.app"]',
+            '[data-testid="stStatusWidget"]',
+            '[data-testid="stAppViewerBadge"]',
+            '[data-testid="stHeaderActionElements"]',
+            '[class*="viewerBadge"]',
+            '[class*="ViewerBadge"]',
+            '#MainMenu',
+            'footer'
+        ];
+
+        selectors.forEach(selector => {
+            // 現在のフレーム内から削除
+            document.querySelectorAll(selector).forEach(el => el.remove());
+
+            // 親フレーム（Community Cloudのホスト枠）から物理削除・無効化
+            try {
+                if (window.parent && window.parent.document) {
+                    window.parent.document.querySelectorAll(selector).forEach(el => el.remove());
+                }
+            } catch (e) {
+                try {
+                    const parentBadges = window.parent.document.querySelectorAll(selector);
+                    parentBadges.forEach(el => {
+                        el.style.display = 'none';
+                        el.style.pointerEvents = 'none';
+                    });
+                } catch (err) {}
+            }
+        });
+    }
+
+    removeStreamlitBadges();
+    const badgeInterval = setInterval(removeStreamlitBadges, 300);
+    setTimeout(() => clearInterval(badgeInterval), 5000);
+</script>
+""")
+
 # カスタムCSS（デザイン）
 st.markdown("""
     <style>
@@ -61,16 +104,16 @@ st.markdown("""
     }
 
     .main .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 3rem !important;
+        padding-top: 0.5rem !important;
+        padding-bottom: 2rem !important;
     }
     @media (max-width: 768px) {
         .main .block-container {
-            padding-top: 0.5rem !important;
+            padding-top: 0rem !important;
         }
     }
 
-    /* 2. 下部の Streamlit バッジ・リンク・ホスト表示の完全非表示＆タップ無効化 */
+    /* 2. 下部バッジ・リンクの徹底的な非表示およびタップ無効化 */
     footer,
     [data-testid="stStatusWidget"],
     .viewerBadge_container__1S-td,
@@ -80,19 +123,15 @@ st.markdown("""
     [data-testid="stHeaderActionElements"],
     #MainMenu,
     a[href*="streamlit.io"],
-    a[href*="streamlit.app"] {
+    a[href*="streamlit.app"],
+    div[class*="viewerBadge"],
+    div[class*="stAppViewerBadge"] {
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
         pointer-events: none !important;
-    }
-
-    /* 画面右下に固定配置されるViewer Toolbar等を一律で非表示化 */
-    div[class*="viewerBadge"],
-    div[class*="stAppViewerBadge"],
-    div[data-test-script-path] ~ div {
-        display: none !important;
-        pointer-events: none !important;
+        height: 0 !important;
+        width: 0 !important;
     }
 
     /* 【第1・第2ステップ】などの小さな見出し用スタイル */
