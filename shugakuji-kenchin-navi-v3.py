@@ -35,7 +35,7 @@ st.markdown("""
         color: #1E3A8A;
     }
 
-    /* カスタム大ボタンの基本設定 */
+    /* ボタンの共通設定 */
     div.stButton > button {
         width: 100%;
         font-size: 1.25rem !important;
@@ -269,6 +269,7 @@ if st.session_state.step == 1:
         )
 
     st.write("")
+    st.markdown("<b>↓受付が済んだらタップしてください。</b>", unsafe_allow_html=True)
     
     btn_type = "secondary" if st.session_state.step1_completed else "primary"
     
@@ -329,9 +330,14 @@ elif st.session_state.step == 5:
     st.balloons()
     st.header("健診がすべて終了しました")
     st.markdown("お疲れ様でした。気をつけてお帰りください。")
-    if st.button("最初の画面に戻る"):
-        st.session_state.step1_completed = False
-        st.session_state.step = 1
+
+# -----------------------------------------------------------------
+# 共通「前に戻る」ボタン（第2〜第5ステップで表示）
+# -----------------------------------------------------------------
+if st.session_state.step > 1:
+    st.write("")
+    if st.button("⬅️ 前のステップに戻る"):
+        st.session_state.step -= 1
         st.rerun()
 
 # -----------------------------------------------------------------
