@@ -2,15 +2,26 @@ import os
 import requests
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 from PIL import Image, ImageDraw, ImageFont
 
 # -----------------------------------------------------------------
 # 1. ページの設定
 # -----------------------------------------------------------------
 st.set_page_config(
-    page_title="安小 就学時検診",
+    page_title="安小 就学時健診",
     page_icon="🏫",
     layout="centered",
+)
+
+# ステップ変更時にページ最上部へスクロールするコンポーネント
+components.html(
+    """
+    <script>
+        window.parent.scrollTo({top: 0, behavior: 'smooth'});
+    </script>
+    """,
+    height=0,
 )
 
 # カスタムCSS（デザイン）
@@ -138,7 +149,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # アプリタイトル
-st.title("安小 就学時検診")
+st.title("安小 就学時健診")
 
 if "step" not in st.session_state:
     st.session_state.step = 1
@@ -529,7 +540,6 @@ elif st.session_state.step == 4:
     st.divider()
     st.write("")
 
-    # 教育相談の選択完了かつ結果通知提出完了でボタン有効化
     can_finish = (st.session_state.get("opt_choice") is not None) and st.session_state.get("final_completed", False)
 
     st.markdown('<div id="next-step-btn-container"></div>', unsafe_allow_html=True)
