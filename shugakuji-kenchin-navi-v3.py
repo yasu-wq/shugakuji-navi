@@ -35,15 +35,6 @@ st.markdown("""
         color: #1E3A8A;
     }
 
-    /* チェックボックス全体の拡大調整 */
-    div[data-testid="stCheckbox"] {
-        padding: 6px 0;
-    }
-    div[data-testid="stCheckbox"] svg {
-        width: 28px !important;
-        height: 28px !important;
-    }
-
     /* ボタンの基本設定 */
     div.stButton > button {
         width: 100%;
@@ -57,6 +48,32 @@ st.markdown("""
         font-weight: 800 !important;
         padding: 1.2rem 1rem !important;
         line-height: 1.4 !important;
+    }
+
+    /* 第2ステップ：各検査完了ボタン（タップ前：薄青 / タップ後：赤） */
+    div.element-container:has(.test-status-unselected) + div.element-container div.stButton > button {
+        background-color: #93C5FD !important; /* 薄めの青 */
+        color: #1E3A8A !important;
+        font-size: 1.25rem !important;
+        font-weight: bold !important;
+        padding: 0.9rem 1rem !important;
+        border: none !important;
+    }
+    div.element-container:has(.test-status-unselected) + div.element-container div.stButton > button:hover {
+        background-color: #60A5FA !important;
+    }
+
+    div.element-container:has(.test-status-selected) + div.element-container div.stButton > button {
+        background-color: #DC3545 !important; /* 赤色 */
+        color: #FFFFFF !important;
+        font-size: 1.25rem !important;
+        font-weight: bold !important;
+        padding: 0.9rem 1rem !important;
+        border: none !important;
+        box-shadow: 0 4px 10px rgba(220, 53, 69, 0.3);
+    }
+    div.element-container:has(.test-status-selected) + div.element-container div.stButton > button:hover {
+        background-color: #BD2130 !important;
     }
 
     /* 第2ステップ：「次のステップへ進む」ボタン（全状態特大サイズ統一） */
@@ -326,10 +343,9 @@ elif st.session_state.step == 2:
     st.write("")
 
     tests = df_settings[df_settings["type"] == "test"]
-    checkboxes = {}
+    completed_status = {}
 
     for idx, row in tests.iterrows():
-        # 視力検査の上・聴力検査の上にそれぞれ区切り線を配置
         st.divider()
 
         st.markdown(f"### ■ {row['item_name']}")
@@ -341,36 +357,32 @@ elif st.session_state.step == 2:
             f'<p><span class="info-label">■ ご案内：</span>{row["details"]}</p>', 
             unsafe_allow_html=True
         )
-        
-        # セッション状態のチェック状態を取得して動的なスタイルを設定
-        chk_key = f"chk_{idx}"
-        is_checked = st.session_state.get(chk_key, False)
-        
-        # チェック前：薄め青（#4A5568）・標準太さ / チェック後：濃い青（#1E3A8A）・太字
-        text_color = "#1E3A8A" if is_checked else "#4A5568"
-        font_weight = "bold" if is_checked else "normal"
+        st.write("")
 
-        # 動的なラベルスタイル
-        st.markdown(f"""
-            <style>
-            div[data-testid="stCheckbox"]:has(input[aria-label="{row['item_name']}を受診した"]) label p {{
-                color: {text_color} !important;
-                font-weight: {font_weight} !important;
-                font-size: 1.35rem !important;
-            }}
-            </style>
-        """, unsafe_allow_html=True)
+        # ボタンの状態管理用セッションキー
+        btn_key = f"test_btn_{idx}"
+        if btn_key not in st.session_state:
+            st.session_state[btn_key] = False
 
-        checkboxes[row['item_name']] = st.checkbox(
-            f"{row['item_name']}を受診した", 
-            key=chk_key
-        )
+        is_done = st.session_state[btn_key]
+        completed_status[row['item_name']] = is_done
+
+        # CSSで特定のボタンの見た目をターゲットにするアンカー
+        status_class = "test-status-selected" if is_done else "test-status-unselected"
+        st.markdown(f'<div class="{status_class}"></div>', unsafe_allow_html=True)
+
+        # ボタンラベルテキスト（完了/未完了）
+        btn_label = f"✓ {row['item_name']}を受診完了（タップで解除）" if is_done else f"{row['item_name']}を受診した"
+
+        if st.button(btn_label, key=f"btn_act_{idx}"):
+            st.session_state[btn_key] = not is_done
+            st.rerun()
 
     st.divider()
     st.write("")
 
-    # 視力と聴力の両方にチェックが入っているかの判定
-    all_checked = all(checkboxes.values())
+    # 視力・聴力両方のボタンが押されているか確認
+    all_checked = all(completed_status.values())
 
     # ボタン専用スタイルアンカー設定
     st.markdown('<div id="next-step-btn-container"></div>', unsafe_allow_html=True)
