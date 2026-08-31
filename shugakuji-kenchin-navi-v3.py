@@ -8,15 +8,73 @@ from PIL import Image, ImageDraw, ImageFont
 # 1. ページの設定
 # -----------------------------------------------------------------
 st.set_page_config(
-    page_title="就学時健康診断 案内ナビ",
+    page_title="安小 就学時検診",
     page_icon="🏫",
     layout="centered",
 )
 
-st.title("令和8年度 就学時健康診断 案内ナビ")
+# カスタムCSS（デザイン）
+st.markdown("""
+    <style>
+    /* 【第1ステップ】などの小さな見出し用スタイル */
+    .sub-step-title {
+        font-size: 1.1rem !important;
+        font-weight: bold;
+        color: #555555;
+        margin-bottom: 0px;
+    }
+    
+    /* 「受付場所」「ご案内」インラインスタイル */
+    .info-label {
+        font-size: 1.1rem;
+        font-weight: bold;
+    }
+    .venue-large {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #1E3A8A;
+    }
+
+    /* カスタム大ボタンの基本設定 */
+    div.stButton > button {
+        width: 100%;
+        font-size: 1.25rem !important;
+        font-weight: bold !important;
+        padding: 0.75rem 1rem !important;
+        border-radius: 8px !important;
+        transition: all 0.3s ease;
+    }
+
+    /* 未タップ状態（グレーボタン） */
+    div.stButton > button[kind="primary"] {
+        background-color: #6C757D !important;
+        color: #FFFFFF !important;
+        border: none !important;
+    }
+    div.stButton > button[kind="primary"]:hover {
+        background-color: #5A6268 !important;
+    }
+
+    /* タップ完了後状態（赤色ボタン） */
+    div.stButton > button[kind="secondary"] {
+        background-color: #DC3545 !important;
+        color: #FFFFFF !important;
+        border: none !important;
+    }
+    div.stButton > button[kind="secondary"]:hover {
+        background-color: #BD2130 !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# アプリタイトル
+st.title("安小 就学時検診")
 
 if "step" not in st.session_state:
     st.session_state.step = 1
+
+if "step1_completed" not in st.session_state:
+    st.session_state.step1_completed = False
 
 # -----------------------------------------------------------------
 # 2. ヘルパー関数（フォント・カラー・マップ描画）
@@ -143,29 +201,27 @@ def build_map_image(data_json):
     return image
 
 # -----------------------------------------------------------------
-# 3. 超強力データ保護ロジック（リロードされてもGASを叩かない）
+# 3. データ保護ロジック
 # -----------------------------------------------------------------
 default_settings = pd.DataFrame([
-    {"step": 1, "item_name": "受付案内", "venue": "南校舎2F廊下 または ひまわり 1", "details": "事前に送付された「お知らせ（桜色）」と「健康診断票（黄色）」をご用意ください。", "type": "reception"},
+    {"step": 1, "item_name": "受付案内", "venue": "ひまわり 1", "details": "事前に送付された「お知らせ（桜色）」と「健康診断票（黄色）」をご用意ください。", "type": "reception"},
     {"step": 2, "item_name": "視力検査", "venue": "家庭科室", "details": "お子様と一緒に検査を受けてください。", "type": "test"},
     {"step": 2, "item_name": "聴力検査", "venue": "1-1、1-2、ひまわり 5", "details": "空いている教室から優先して受診してください。", "type": "test"},
     {"step": 3, "item_name": "内科検診", "venue": "図工室", "details": "※受診前にお子様のお着替え（上半身を脱ぐ）が必要です。", "type": "doctor"},
     {"step": 3, "item_name": "歯科検診", "venue": "4-1", "details": "歯科検診会場です。", "type": "doctor"},
     {"step": 3, "item_name": "耳鼻科検診", "venue": "活動室南", "details": "耳鼻科検診会場です。", "type": "doctor"},
-    {"step": 3, "item_name": "眼科検診", "venue": "4-2", "details": "眼科検診会場です。", "type": "doctor"},
+    {"step": 4, "item_name": "眼科検診", "venue": "4-2", "details": "眼科検診会場です。", "type": "doctor"},
     {"step": 4, "item_name": "教育相談", "venue": "ひまわり 2", "details": "※希望者のみ（待機場所：理科室）。", "type": "optional"},
     {"step": 4, "item_name": "結果通知", "venue": "ひまわり 3", "details": "【全員必須】クリアファイルと健康診断票を提出してください。", "type": "final"}
 ])
 
 @st.cache_resource
 def get_persistent_store():
-    """サーバー上に永続的なデータ領域を保持する"""
     return {"raw_data": None, "df_settings": None, "map_img": None}
 
 store = get_persistent_store()
 
 def load_data_force(force_refresh=False):
-    """データ取得ロジック（一度成功したら二度とGASを叩かない）"""
     if not force_refresh and store["df_settings"] is not None:
         return store["df_settings"], store["map_img"]
 
@@ -181,37 +237,43 @@ def load_data_force(force_refresh=False):
         except Exception:
             pass
 
-    # 通信失敗時で、過去データも無い場合のみデフォルトを採用
     if store["df_settings"] is None:
         return default_settings, None
     return store["df_settings"], store["map_img"]
 
-# データと画像の取得
 df_settings, generated_map_img = load_data_force()
 
 # -----------------------------------------------------------------
-# 4. 画面描画
+# 4. 画面描画（ナビゲーションコンテンツ）
 # -----------------------------------------------------------------
-with st.expander("🗺️ 【どこでも確認】全体会場配置図を開く / 閉じる", expanded=False):
-    if generated_map_img:
-        st.image(generated_map_img, caption="校内会場配置図", use_container_width=True)
-    else:
-        st.info("全体会場配置図を取得できませんでした。各案内の会場情報をご確認ください。")
-
-st.divider()
-
 steps_names = ["1. 受付", "2. 視力・聴力検査", "3. 医師検診", "4. 教育相談・結果通知", "5. 終了"]
 if st.session_state.step <= 5:
     st.progress((st.session_state.step - 1) / 4.0)
     st.caption(f"進捗状況: {steps_names[st.session_state.step - 1]}")
 
 if st.session_state.step == 1:
-    st.header("【第1ステップ】 受付")
+    st.markdown('<p class="sub-step-title">【第1ステップ】</p>', unsafe_allow_html=True)
+    st.header("受付")
+    
     reception_data = df_settings[df_settings["type"] == "reception"]
     if not reception_data.empty:
         info = reception_data.iloc[0]
-        st.markdown(f"**■ 受付場所**\n* **{info['venue']}**\n\n**■ ご案内**\n* {info['details']}")
-    if st.button("受付を完了し、番号札とクリアファイルを受け取りました"):
+        
+        st.markdown(
+            f'<p><span class="info-label">受付場所：</span><span class="venue-large">{info["venue"]}</span></p>', 
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f'<p><span class="info-label">■ ご案内：</span>{info["details"]}</p>', 
+            unsafe_allow_html=True
+        )
+
+    st.write("")
+    
+    btn_type = "secondary" if st.session_state.step1_completed else "primary"
+    
+    if st.button("受付を完了し、番号札とクリアファイルを受け取りました", type=btn_type):
+        st.session_state.step1_completed = True
         st.session_state.step = 2
         st.rerun()
 
@@ -268,8 +330,20 @@ elif st.session_state.step == 5:
     st.header("健診がすべて終了しました")
     st.markdown("お疲れ様でした。気をつけてお帰りください。")
     if st.button("最初の画面に戻る"):
+        st.session_state.step1_completed = False
         st.session_state.step = 1
         st.rerun()
+
+# -----------------------------------------------------------------
+# 5. 会場配置図（一番下に常時表示）
+# -----------------------------------------------------------------
+st.divider()
+st.subheader("🗺️ 会場配置図")
+
+if generated_map_img:
+    st.image(generated_map_img, caption="校内会場配置図", use_container_width=True)
+else:
+    st.info("会場配置図を取得できませんでした。各案内の会場情報をご確認ください。")
 
 # -----------------------------------------------------------------
 # 管理用サイドバー
