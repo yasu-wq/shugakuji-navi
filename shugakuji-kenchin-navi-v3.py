@@ -35,31 +35,9 @@ st.markdown("""
         color: #1E3A8A;
     }
 
-    /* 第2ステップ：表（カード枠）スタイリング */
-    .test-card {
-        border: 2px solid #D0D7DE;
-        border-radius: 10px;
-        padding: 16px;
-        margin-bottom: 20px;
-        background-color: #F8FAFC;
-    }
-
-    /* 第2ステップ：大文字＆濃い青色のチェックボックスラベル */
-    .chk-label-large {
-        font-size: 1.35rem !important;
-        font-weight: bold !important;
-        color: #1E3A8A !important;
-        margin-left: 8px;
-    }
-
     /* チェックボックス全体の拡大調整 */
     div[data-testid="stCheckbox"] {
         padding: 6px 0;
-    }
-    div[data-testid="stCheckbox"] label p {
-        font-size: 1.35rem !important;
-        font-weight: bold !important;
-        color: #1E3A8A !important;
     }
     div[data-testid="stCheckbox"] svg {
         width: 28px !important;
@@ -73,12 +51,26 @@ st.markdown("""
         transition: all 0.3s ease;
     }
 
-    /* 第1ステップ：「受付を完了し…」専用の超特大ボタンテキスト */
+    /* 第1ステップ：「受付を完了し…」専用の特大ボタンテキスト */
     div.element-container:has(#reception-complete-btn) + div.element-container div.stButton > button {
         font-size: 1.4rem !important;
         font-weight: 800 !important;
         padding: 1.2rem 1rem !important;
         line-height: 1.4 !important;
+    }
+
+    /* 第2ステップ：両方チェック完了時の特大「次のステップへ進む」ボタン */
+    div.element-container:has(#next-step-btn-active) + div.element-container div.stButton > button {
+        font-size: 1.35rem !important;
+        font-weight: 800 !important;
+        padding: 1.1rem 1rem !important;
+        background-color: #2563EB !important; /* 目立つブルー */
+        color: #FFFFFF !important;
+        border: none !important;
+        box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
+    }
+    div.element-container:has(#next-step-btn-active) + div.element-container div.stButton > button:hover {
+        background-color: #1D4ED8 !important;
     }
 
     /* 未タップ状態（グレーボタン） */
@@ -325,27 +317,54 @@ elif st.session_state.step == 2:
     checkboxes = {}
 
     for idx, row in tests.iterrows():
-        # 各検査項目を表形式のカード枠で区切る
-        with st.container():
-            st.markdown(f"### ■ {row['item_name']}")
-            st.markdown(
-                f'<p><span class="info-label">検査場所：</span><span class="venue-large">{row["venue"]}</span></p>', 
-                unsafe_allow_html=True
-            )
-            st.markdown(
-                f'<p><span class="info-label">■ ご案内：</span>{row["details"]}</p>', 
-                unsafe_allow_html=True
-            )
-            
-            # チェックボックス（文字拡大・濃い青色）
-            checkboxes[row['item_name']] = st.checkbox(
-                f"{row['item_name']}を受診した", 
-                key=f"chk_{idx}"
-            )
-            st.divider()
+        # 視力検査の上にも区切り線を配置（最初の要素の前にも指定）
+        st.divider()
 
+        st.markdown(f"### ■ {row['item_name']}")
+        st.markdown(
+            f'<p><span class="info-label">検査場所：</span><span class="venue-large">{row["venue"]}</span></p>', 
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f'<p><span class="info-label">■ ご案内：</span>{row["details"]}</p>', 
+            unsafe_allow_html=True
+        )
+        
+        # セッション状態のチェック状態を取得して動的なスタイルを設定
+        chk_key = f"chk_{idx}"
+        is_checked = st.session_state.get(chk_key, False)
+        
+        # チェック前：薄め青（#4A5568）・標準太さ / チェック後：濃い青（#1E3A8A）・太字
+        text_color = "#1E3A8A" if is_checked else "#4A5568"
+        font_weight = "bold" if is_checked else "normal"
+
+        # 動的なラベルスタイル（文字の大きさ 1.35rem は維持）
+        st.markdown(f"""
+            <style>
+            div[data-testid="stCheckbox"]:has(input[aria-label="{row['item_name']}を受診した"]) label p {{
+                color: {text_color} !important;
+                font-weight: {font_weight} !important;
+                font-size: 1.35rem !important;
+            }}
+            </style>
+        """, unsafe_allow_html=True)
+
+        checkboxes[row['item_name']] = st.checkbox(
+            f"{row['item_name']}を受診した", 
+            key=chk_key
+        )
+
+    st.divider()
     st.write("")
-    if st.button("次のステップ（医師による検診）へ進む", disabled=not all(checkboxes.values())):
+
+    # 視力と聴力の両方にチェックが入っている場合の判定
+    all_checked = all(checkboxes.values())
+
+    # 両方チェックが入った場合、ボタンを大きく・文字を大きく適用するアンカー
+    if all_checked:
+        st.markdown('<div id="next-step-btn-active"></div>', unsafe_allow_html=True)
+
+    if st.button("次のステップ（医師による検診）へ進む", disabled=not all_checked):
         st.session_state.step = 3
         st.rerun()
 
