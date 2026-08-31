@@ -45,6 +45,12 @@ st.markdown("""
         transition: all 0.3s ease;
     }
 
+    /* 第1ステップ用：さらに大きいボタンテキスト設定 */
+    div.stButton > button.big-btn-target {
+        font-size: 1.35rem !important;
+        padding: 1rem 1rem !important;
+    }
+
     /* 未タップ状態（グレーボタン） */
     div.stButton > button[kind="primary"] {
         background-color: #6C757D !important;
@@ -273,6 +279,7 @@ if st.session_state.step == 1:
     
     btn_type = "secondary" if st.session_state.step1_completed else "primary"
     
+    # ボタン文字列をさらに強調（1.35remサイズ化）
     if st.button("受付を完了し、番号札とクリアファイルを受け取りました", type=btn_type):
         st.session_state.step1_completed = True
         st.session_state.step = 2
