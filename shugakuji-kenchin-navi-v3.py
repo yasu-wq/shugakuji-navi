@@ -59,18 +59,30 @@ st.markdown("""
         line-height: 1.4 !important;
     }
 
-    /* 第2ステップ：両方チェック完了時の特大「次のステップへ進む」ボタン */
-    div.element-container:has(#next-step-btn-active) + div.element-container div.stButton > button {
+    /* 第2ステップ：「次のステップへ進む」ボタン（全状態特大サイズ統一） */
+    div.element-container:has(#next-step-btn-container) + div.element-container div.stButton > button {
         font-size: 1.35rem !important;
         font-weight: 800 !important;
         padding: 1.1rem 1rem !important;
-        background-color: #2563EB !important; /* 目立つブルー */
+    }
+
+    /* チェック前（無効時）：青色ベース */
+    div.element-container:has(#next-step-btn-container) + div.element-container div.stButton > button:disabled {
+        background-color: #93C5FD !important; /* 明るめの青色（無効状態） */
+        color: #FFFFFF !important;
+        opacity: 0.7;
+        border: none !important;
+    }
+
+    /* チェック完了後（有効時）：赤色ベース */
+    div.element-container:has(#next-step-btn-container) + div.element-container div.stButton > button:not(:disabled) {
+        background-color: #DC3545 !important; /* 目立つ赤色 */
         color: #FFFFFF !important;
         border: none !important;
-        box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
+        box-shadow: 0 4px 10px rgba(220, 53, 69, 0.3);
     }
-    div.element-container:has(#next-step-btn-active) + div.element-container div.stButton > button:hover {
-        background-color: #1D4ED8 !important;
+    div.element-container:has(#next-step-btn-container) + div.element-container div.stButton > button:not(:disabled):hover {
+        background-color: #BD2130 !important;
     }
 
     /* 未タップ状態（グレーボタン） */
@@ -317,7 +329,7 @@ elif st.session_state.step == 2:
     checkboxes = {}
 
     for idx, row in tests.iterrows():
-        # 視力検査の上にも区切り線を配置（最初の要素の前にも指定）
+        # 視力検査の上・聴力検査の上にそれぞれ区切り線を配置
         st.divider()
 
         st.markdown(f"### ■ {row['item_name']}")
@@ -338,7 +350,7 @@ elif st.session_state.step == 2:
         text_color = "#1E3A8A" if is_checked else "#4A5568"
         font_weight = "bold" if is_checked else "normal"
 
-        # 動的なラベルスタイル（文字の大きさ 1.35rem は維持）
+        # 動的なラベルスタイル
         st.markdown(f"""
             <style>
             div[data-testid="stCheckbox"]:has(input[aria-label="{row['item_name']}を受診した"]) label p {{
@@ -357,12 +369,11 @@ elif st.session_state.step == 2:
     st.divider()
     st.write("")
 
-    # 視力と聴力の両方にチェックが入っている場合の判定
+    # 視力と聴力の両方にチェックが入っているかの判定
     all_checked = all(checkboxes.values())
 
-    # 両方チェックが入った場合、ボタンを大きく・文字を大きく適用するアンカー
-    if all_checked:
-        st.markdown('<div id="next-step-btn-active"></div>', unsafe_allow_html=True)
+    # ボタン専用スタイルアンカー設定
+    st.markdown('<div id="next-step-btn-container"></div>', unsafe_allow_html=True)
 
     if st.button("次のステップ（医師による検診）へ進む", disabled=not all_checked):
         st.session_state.step = 3
