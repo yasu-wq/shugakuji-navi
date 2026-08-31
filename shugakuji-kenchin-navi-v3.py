@@ -50,7 +50,7 @@ st.markdown("""
         line-height: 1.4 !important;
     }
 
-    /* 第2・第3ステップ：各検査・検診完了ボタン（タップ前：薄青 / タップ後：赤） */
+    /* 各検査・検診・完了ボタン（タップ前：薄青 / タップ後：赤） */
     div.element-container:has(.test-status-unselected) + div.element-container div.stButton > button {
         background-color: #93C5FD !important; /* 薄めの青 */
         color: #1E3A8A !important;
@@ -76,7 +76,7 @@ st.markdown("""
         background-color: #BD2130 !important;
     }
 
-    /* 「次のステップへ進む」ボタン（全状態特大サイズ統一） */
+    /* 「次のステップへ進む」「健診を終了する」ボタン（全状態特大サイズ統一） */
     div.element-container:has(#next-step-btn-container) + div.element-container div.stButton > button {
         font-size: 1.35rem !important;
         font-weight: 800 !important;
@@ -372,10 +372,8 @@ elif st.session_state.step == 2:
         )
         st.write("")
 
-        # ボタン直上の案内テキスト
         st.markdown("<b>👇️受診が終わったらタップしてください。</b>", unsafe_allow_html=True)
 
-        # ボタンの状態管理用セッションキー
         btn_key = f"test_btn_{idx}"
         if btn_key not in st.session_state:
             st.session_state[btn_key] = False
@@ -383,11 +381,9 @@ elif st.session_state.step == 2:
         is_done = st.session_state[btn_key]
         completed_status[row['item_name']] = is_done
 
-        # CSSで特定のボタンの見た目をターゲットにするアンカー
         status_class = "test-status-selected" if is_done else "test-status-unselected"
         st.markdown(f'<div class="{status_class}"></div>', unsafe_allow_html=True)
 
-        # ボタンラベルテキスト（完了/未完了）
         btn_label = f"✓ {row['item_name']}を受診完了（タップで解除）" if is_done else f"{row['item_name']}を受診した"
 
         if st.button(btn_label, key=f"btn_act_{idx}"):
@@ -397,10 +393,7 @@ elif st.session_state.step == 2:
     st.divider()
     st.write("")
 
-    # 視力・聴力両方のボタンが押されているか確認
     all_checked = all(completed_status.values())
-
-    # ボタン専用スタイルアンカー設定
     st.markdown('<div id="next-step-btn-container"></div>', unsafe_allow_html=True)
 
     if st.button("次のステップ（医師による検診）へ進む", disabled=not all_checked):
@@ -430,10 +423,8 @@ elif st.session_state.step == 3:
         )
         st.write("")
 
-        # ボタン直上の案内テキスト
         st.markdown("<b>👇️受診が終わったらタップしてください。</b>", unsafe_allow_html=True)
 
-        # ボタンの状態管理用セッションキー
         btn_key = f"doc_btn_{idx}"
         if btn_key not in st.session_state:
             st.session_state[btn_key] = False
@@ -441,11 +432,9 @@ elif st.session_state.step == 3:
         is_done = st.session_state[btn_key]
         completed_status_doc[row['item_name']] = is_done
 
-        # CSSで特定のボタンの見た目をターゲットにするアンカー
         status_class = "test-status-selected" if is_done else "test-status-unselected"
         st.markdown(f'<div class="{status_class}"></div>', unsafe_allow_html=True)
 
-        # ボタンラベルテキスト（完了/未完了）
         btn_label = f"✓ {row['item_name']}を受診完了（タップで解除）" if is_done else f"{row['item_name']}を受診した"
 
         if st.button(btn_label, key=f"btn_doc_act_{idx}"):
@@ -455,10 +444,7 @@ elif st.session_state.step == 3:
     st.divider()
     st.write("")
 
-    # 医師検診がすべて受診されているか確認
     all_doc_checked = all(completed_status_doc.values())
-
-    # ボタン専用スタイルアンカー設定
     st.markdown('<div id="next-step-btn-container"></div>', unsafe_allow_html=True)
 
     if st.button("次のステップ（教育相談・結果通知）へ進む", disabled=not all_doc_checked):
@@ -466,22 +452,88 @@ elif st.session_state.step == 3:
         st.rerun()
 
 elif st.session_state.step == 4:
-    st.header("【第4ステップ】 教育相談・結果通知")
+    st.markdown('<p class="sub-step-title">【第4ステップ】</p>', unsafe_allow_html=True)
+    st.header("教育相談・結果通知")
+    st.write("最後に、教育相談（希望者のみ）と結果通知の受け取りを行ってください。")
+    st.write("")
+
+    # --- 1. 教育相談 ---
     opt_data = df_settings[df_settings["type"] == "optional"]
     if not opt_data.empty:
         opt_row = opt_data.iloc[0]
-        st.markdown(f"**■ {opt_row['item_name']}（会場：{opt_row['venue']}）**")
-        st.write(opt_row['details'])
-        st.radio("教育相談の希望について：", ("希望しない / 相談は不要", "希望し、面談が完了した"))
+        st.divider()
+        st.markdown(f"### ■ {opt_row['item_name']}")
+        st.markdown(
+            f'<p><span class="info-label">相談場所：</span><span class="venue-large">{opt_row["venue"]}</span></p>', 
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f'<p><span class="info-label">■ ご案内：</span>{opt_row["details"]}</p>', 
+            unsafe_allow_html=True
+        )
         st.write("")
-    
+
+        st.markdown("<p style='font-size: 1.25rem; font-weight: bold;'>■ 教育相談の希望について：</p>", unsafe_allow_html=True)
+        st.markdown("<b>👇️どちらか該当する方をタップしてください。</b>", unsafe_allow_html=True)
+
+        if "opt_choice" not in st.session_state:
+            st.session_state["opt_choice"] = None
+
+        opt1_class = "test-status-selected" if st.session_state["opt_choice"] == "no" else "test-status-unselected"
+        st.markdown(f'<div class="{opt1_class}"></div>', unsafe_allow_html=True)
+        btn1_label = "✓ 希望しない / 相談は不要（選択中）" if st.session_state["opt_choice"] == "no" else "希望しない / 相談は不要"
+        if st.button(btn1_label, key="btn_opt_no"):
+            st.session_state["opt_choice"] = "no"
+            st.rerun()
+
+        st.write("")
+
+        opt2_class = "test-status-selected" if st.session_state["opt_choice"] == "yes" else "test-status-unselected"
+        st.markdown(f'<div class="{opt2_class}"></div>', unsafe_allow_html=True)
+        btn2_label = "✓ 希望し、面談が完了した（選択中）" if st.session_state["opt_choice"] == "yes" else "希望し、面談が完了した"
+        if st.button(btn2_label, key="btn_opt_yes"):
+            st.session_state["opt_choice"] = "yes"
+            st.rerun()
+
+    # --- 2. 結果通知 ---
     final_data = df_settings[df_settings["type"] == "final"]
     if not final_data.empty:
         f_info = final_data.iloc[0]
-        st.markdown(f"**■ {f_info['item_name']}（会場：{f_info['venue']}）**")
-        st.write(f_info['details'])
-    checked_final = st.checkbox("結果通知を受け取り、すべての書類とクリアファイルを提出した")
-    if st.button("健診を終了する", disabled=not checked_final):
+        st.divider()
+        st.markdown(f"### ■ {f_info['item_name']}")
+        st.markdown(
+            f'<p><span class="info-label">提出場所：</span><span class="venue-large">{f_info["venue"]}</span></p>', 
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f'<p><span class="info-label">■ ご案内：</span>{f_info["details"]}</p>', 
+            unsafe_allow_html=True
+        )
+        st.write("")
+
+        st.markdown("<b>👇️受診・受取が終わったらタップしてください。</b>", unsafe_allow_html=True)
+
+        if "final_completed" not in st.session_state:
+            st.session_state["final_completed"] = False
+
+        is_final_done = st.session_state["final_completed"]
+        final_class = "test-status-selected" if is_final_done else "test-status-unselected"
+        st.markdown(f'<div class="{final_class}"></div>', unsafe_allow_html=True)
+
+        final_label = "✓ 結果通知を受け取り、全書類を提出完了（タップで解除）" if is_final_done else "結果通知を受け取り、すべての書類とクリアファイルを提出した"
+
+        if st.button(final_label, key="btn_final_act"):
+            st.session_state["final_completed"] = not is_final_done
+            st.rerun()
+
+    st.divider()
+    st.write("")
+
+    # 教育相談の選択完了かつ結果通知提出完了でボタン有効化
+    can_finish = (st.session_state.get("opt_choice") is not None) and st.session_state.get("final_completed", False)
+
+    st.markdown('<div id="next-step-btn-container"></div>', unsafe_allow_html=True)
+    if st.button("健診を終了する", disabled=not can_finish):
         st.session_state.step = 5
         st.rerun()
 
