@@ -35,20 +35,19 @@ st.markdown("""
         color: #1E3A8A;
     }
 
-    /* ボタンの共通設定 */
+    /* ボタンの基本設定 */
     div.stButton > button {
         width: 100%;
-        font-size: 1.25rem !important;
-        font-weight: bold !important;
-        padding: 0.75rem 1rem !important;
         border-radius: 8px !important;
         transition: all 0.3s ease;
     }
 
-    /* 第1ステップ用：さらに大きいボタンテキスト設定 */
-    div.stButton > button.big-btn-target {
-        font-size: 1.35rem !important;
-        padding: 1rem 1rem !important;
+    /* 第1ステップ：「受付を完了し…」専用の超特大ボタンテキスト */
+    div.element-container:has(#reception-complete-btn) + div.element-container div.stButton > button {
+        font-size: 1.4rem !important;
+        font-weight: 800 !important;
+        padding: 1.2rem 1rem !important;
+        line-height: 1.4 !important;
     }
 
     /* 未タップ状態（グレーボタン） */
@@ -279,7 +278,9 @@ if st.session_state.step == 1:
     
     btn_type = "secondary" if st.session_state.step1_completed else "primary"
     
-    # ボタン文字列をさらに強調（1.35remサイズ化）
+    # CSSピンポイント指定用のダミーアンカータグ
+    st.markdown('<div id="reception-complete-btn"></div>', unsafe_allow_html=True)
+    
     if st.button("受付を完了し、番号札とクリアファイルを受け取りました", type=btn_type):
         st.session_state.step1_completed = True
         st.session_state.step = 2
