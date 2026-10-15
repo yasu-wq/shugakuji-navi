@@ -149,6 +149,32 @@ st.markdown("""
         color: #1E3A8A;
     }
 
+    /* 場所表示とボタンを横並びにするコンテナ */
+    .venue-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+    }
+
+    /* 会場配置図ボタン（クリーム色・文字黒・小さめ） */
+    .map-scroll-btn {
+        background-color: #FFFDD0 !important;
+        color: #000000 !important;
+        font-size: 0.8rem !important;
+        padding: 4px 10px !important;
+        border: 1px solid #E0D8B0 !important;
+        border-radius: 6px !important;
+        cursor: pointer !important;
+        font-weight: normal !important;
+        line-height: 1.2 !important;
+        transition: background-color 0.2s ease;
+    }
+    .map-scroll-btn:hover {
+        background-color: #F7F3B7 !important;
+    }
+
     /* ボタン共通スタイル */
     div.stButton > button {
         width: 100%;
@@ -254,10 +280,22 @@ if "step1_completed" not in st.session_state:
     st.session_state.step1_completed = False
 
 # -----------------------------------------------------------------
-# 2. ヘルパー関数（フォント・カラー・マップ描画）
+# 2. ヘルパー関数（フォント・カラー・マップ描画・会場ボタンHTML生成）
 # -----------------------------------------------------------------
+def render_venue_with_map_btn(label, venue_name):
+    """検査場所の表記と会場配置図スクロールボタンを横並びで描画するHTML"""
+    html_code = f"""
+    <div class="venue-container">
+        <span><span class="info-label">{label}：</span><span class="venue-large">{venue_name}</span></span>
+        <button class="map-scroll-btn" onclick="
+            const el = window.parent.document.getElementById('map-section');
+            if (el) {{ el.scrollIntoView({{ behavior: 'smooth' }}); }}
+        ">会場配置図</button>
+    </div>
+    """
+    st.markdown(html_code, unsafe_allow_html=True)
+
 def get_japanese_font(font_size=12):
-    # アプリ内にフォントを配置する場合のパスを先頭に追加
     font_paths = [
         "fonts/NotoSansJP-Regular.ttf",
         "./NotoSansJP-Regular.ttf",
@@ -439,10 +477,8 @@ if st.session_state.step == 1:
     if not reception_data.empty:
         info = reception_data.iloc[0]
         
-        st.markdown(
-            f'<p><span class="info-label">受付場所：</span><span class="venue-large">{info["venue"]}</span></p>', 
-            unsafe_allow_html=True
-        )
+        render_venue_with_map_btn("受付場所", info["venue"])
+        
         st.markdown(
             f'<p><span class="info-label">■ ご案内：</span>{info["details"]}</p>', 
             unsafe_allow_html=True
@@ -472,10 +508,9 @@ elif st.session_state.step == 2:
         st.divider()
 
         st.markdown(f"### ■ {row['item_name']}")
-        st.markdown(
-            f'<p><span class="info-label">検査場所：</span><span class="venue-large">{row["venue"]}</span></p>', 
-            unsafe_allow_html=True
-        )
+        
+        render_venue_with_map_btn("検査場所", row["venue"])
+        
         st.markdown(
             f'<p><span class="info-label">■ ご案内：</span>{row["details"]}</p>', 
             unsafe_allow_html=True
@@ -526,10 +561,9 @@ elif st.session_state.step == 3:
         st.divider()
 
         st.markdown(f"### ■ {row['item_name']}")
-        st.markdown(
-            f'<p><span class="info-label">検診場所：</span><span class="venue-large">{row["venue"]}</span></p>', 
-            unsafe_allow_html=True
-        )
+        
+        render_venue_with_map_btn("検診場所", row["venue"])
+        
         st.markdown(
             f'<p><span class="info-label">■ ご案内：</span>{row["details"]}</p>', 
             unsafe_allow_html=True
@@ -576,10 +610,9 @@ elif st.session_state.step == 4:
         opt_row = opt_data.iloc[0]
         st.divider()
         st.markdown(f"### ■ {opt_row['item_name']}")
-        st.markdown(
-            f'<p><span class="info-label">相談場所：</span><span class="venue-large">{opt_row["venue"]}</span></p>', 
-            unsafe_allow_html=True
-        )
+        
+        render_venue_with_map_btn("相談場所", opt_row["venue"])
+        
         st.markdown(
             f'<p><span class="info-label">■ ご案内：</span>{opt_row["details"]}</p>', 
             unsafe_allow_html=True
@@ -614,10 +647,9 @@ elif st.session_state.step == 4:
         f_info = final_data.iloc[0]
         st.divider()
         st.markdown(f"### ■ {f_info['item_name']}")
-        st.markdown(
-            f'<p><span class="info-label">提出場所：</span><span class="venue-large">{f_info["venue"]}</span></p>', 
-            unsafe_allow_html=True
-        )
+        
+        render_venue_with_map_btn("提出場所", f_info["venue"])
+        
         st.markdown(
             f'<p><span class="info-label">■ ご案内：</span>{f_info["details"]}</p>', 
             unsafe_allow_html=True
@@ -665,9 +697,11 @@ if st.session_state.step > 1:
         st.rerun()
 
 # -----------------------------------------------------------------
-# 5. 会場配置図（一番下に常時表示）
+# 5. 会場配置図（一番下に常時表示・スクロール用アンカー付き）
 # -----------------------------------------------------------------
 st.divider()
+# スクロール移動先用のアンカータグ
+st.markdown('<div id="map-section"></div>', unsafe_allow_html=True)
 st.subheader("🗺️ 会場配置図")
 
 if generated_map_img:
