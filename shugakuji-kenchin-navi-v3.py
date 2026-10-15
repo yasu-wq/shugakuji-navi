@@ -3,7 +3,734 @@ import requests
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
+from PIL import Image, ImageDraw, ImageFontimport os
+import requests
+import pandas as pd
+import streamlit as st
+import streamlit.components.v1 as components
 from PIL import Image, ImageDraw, ImageFont
+
+# -----------------------------------------------------------------
+# 1. ページの設定
+# -----------------------------------------------------------------
+st.set_page_config(
+    page_title="安小 就学時健診",
+    page_icon="🏫",
+    layout="centered",
+)
+
+if "step" not in st.session_state:
+    st.session_state.step = 1
+
+if "last_scrolled_step" not in st.session_state:
+    st.session_state.last_scrolled_step = None
+
+# 最上部スクロール用のターゲットアンカー要素
+st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
+
+# ステップが変更された場合に確実に最上部へスクロールさせるスクリプト
+if st.session_state.last_scrolled_step != st.session_state.step:
+    st.session_state.last_scrolled_step = st.session_state.step
+    components.html(
+        """
+        <script>
+            function scrollToTop() {
+                window.parent.scrollTo({top: 0, left: 0, behavior: 'instant'});
+                const anchor = window.parent.document.getElementById('top-anchor');
+                if (anchor) {
+                    anchor.scrollIntoView({behavior: 'instant', block: 'start'});
+                }
+                const mainContainer = window.parent.document.querySelector('.main');
+                if (mainContainer) {
+                    mainContainer.scrollTop = 0;
+                }
+            }
+            scrollToTop();
+            setTimeout(scrollToTop, 50);
+            setTimeout(scrollToTop, 150);
+        </script>
+        """,
+        height=0,
+    )
+
+# 下部バッジ・Streamlit要素の非表示化スクリプト
+st.html("""
+<script>
+    function removeStreamlitBadges() {
+        const selectors = [
+            'a[href*="streamlit.io"]',
+            'a[href*="streamlit.app"]',
+            '[data-testid="stStatusWidget"]',
+            '[data-testid="stAppViewerBadge"]',
+            '[data-testid="stHeaderActionElements"]',
+            '[class*="viewerBadge"]',
+            '[class*="ViewerBadge"]',
+            '#MainMenu',
+            'footer'
+        ];
+
+        selectors.forEach(selector => {
+            document.querySelectorAll(selector).forEach(el => el.remove());
+            try {
+                if (window.parent && window.parent.document) {
+                    window.parent.document.querySelectorAll(selector).forEach(el => el.remove());
+                }
+            } catch (e) {
+                try {
+                    const parentBadges = window.parent.document.querySelectorAll(selector);
+                    parentBadges.forEach(el => {
+                        el.style.display = 'none';
+                        el.style.pointerEvents = 'none';
+                    });
+                } catch (err) {}
+            }
+        });
+    }
+
+    removeStreamlitBadges();
+    const badgeInterval = setInterval(removeStreamlitBadges, 300);
+    setTimeout(() => clearInterval(badgeInterval), 5000);
+</script>
+""")
+
+# カスタムCSS（デザイン）
+st.markdown("""
+    <style>
+    /* 1. 上部ヘッダー・バーの完全非表示と余白カット */
+    .stAppToolbar, 
+    header[data-testid="stHeader"],
+    [data-testid="stHeader"],
+    [data-testid="stDecoration"] {
+        display: none !important;
+        height: 0px !important;
+    }
+
+    .main .block-container {
+        padding-top: 0.5rem !important;
+        padding-bottom: 2rem !important;
+    }
+    @media (max-width: 768px) {
+        .main .block-container {
+            padding-top: 0rem !important;
+        }
+    }
+
+    /* 2. 下部バッジ・リンクの徹底的な非表示 */
+    footer,
+    [data-testid="stStatusWidget"],
+    .viewerBadge_container__1S-td,
+    .styles_viewerBadge__1yB5_,
+    .stAppViewerBadge,
+    [data-testid="stAppViewerBadge"],
+    [data-testid="stHeaderActionElements"],
+    #MainMenu,
+    a[href*="streamlit.io"],
+    a[href*="streamlit.app"],
+    div[class*="viewerBadge"],
+    div[class*="stAppViewerBadge"] {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        height: 0 !important;
+        width: 0 !important;
+    }
+
+    /* タイトル・各種スタイル */
+    .sub-step-title {
+        font-size: 1.1rem !important;
+        font-weight: bold;
+        color: #555555;
+        margin-bottom: 0px;
+    }
+    
+    .info-label {
+        font-size: 1.1rem;
+        font-weight: bold;
+    }
+    .venue-large {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #1E3A8A;
+    }
+
+    /* ボタン共通スタイル */
+    div.stButton > button {
+        width: 100%;
+        border-radius: 8px !important;
+        transition: all 0.3s ease;
+    }
+
+    /* 第1ステップ特大ボタン */
+    div.element-container:has(#reception-complete-btn) + div.element-container div.stButton > button {
+        font-size: 1.4rem !important;
+        font-weight: 800 !important;
+        padding: 1.2rem 1rem !important;
+        line-height: 1.4 !important;
+    }
+
+    /* 検査ボタン（未選択：水色 / 選択済み：赤） */
+    div.element-container:has(.test-status-unselected) + div.element-container div.stButton > button {
+        background-color: #93C5FD !important;
+        color: #1E3A8A !important;
+        font-size: 1.25rem !important;
+        font-weight: bold !important;
+        padding: 0.9rem 1rem !important;
+        border: none !important;
+    }
+    div.element-container:has(.test-status-unselected) + div.element-container div.stButton > button:hover {
+        background-color: #60A5FA !important;
+    }
+
+    div.element-container:has(.test-status-selected) + div.element-container div.stButton > button {
+        background-color: #DC3545 !important;
+        color: #FFFFFF !important;
+        font-size: 1.25rem !important;
+        font-weight: bold !important;
+        padding: 0.9rem 1rem !important;
+        border: none !important;
+        box-shadow: 0 4px 10px rgba(220, 53, 69, 0.3);
+    }
+    div.element-container:has(.test-status-selected) + div.element-container div.stButton > button:hover {
+        background-color: #BD2130 !important;
+    }
+
+    /* 「次へ進む」ボタン */
+    div.element-container:has(#next-step-btn-container) + div.element-container div.stButton > button {
+        font-size: 1.35rem !important;
+        font-weight: 800 !important;
+        padding: 1.1rem 1rem !important;
+    }
+
+    div.element-container:has(#next-step-btn-container) + div.element-container div.stButton > button:disabled {
+        background-color: #93C5FD !important;
+        color: #FFFFFF !important;
+        opacity: 0.7;
+        border: none !important;
+    }
+
+    div.element-container:has(#next-step-btn-container) + div.element-container div.stButton > button:not(:disabled) {
+        background-color: #DC3545 !important;
+        color: #FFFFFF !important;
+        border: none !important;
+        box-shadow: 0 4px 10px rgba(220, 53, 69, 0.3);
+    }
+    div.element-container:has(#next-step-btn-container) + div.element-container div.stButton > button:not(:disabled):hover {
+        background-color: #BD2130 !important;
+    }
+
+    /* 「戻る」ボタン */
+    div.element-container:has(#back-step-btn-container) + div.element-container div.stButton > button {
+        background-color: #6C757D !important;
+        color: #FFFFFF !important;
+        border: none !important;
+        font-size: 1rem !important;
+        font-weight: bold !important;
+        padding: 0.6rem 1rem !important;
+    }
+    div.element-container:has(#back-step-btn-container) + div.element-container div.stButton > button:hover {
+        background-color: #5A6268 !important;
+    }
+
+    div.stButton > button[kind="primary"] {
+        background-color: #6C757D !important;
+        color: #FFFFFF !important;
+        border: none !important;
+    }
+    div.stButton > button[kind="primary"]:hover {
+        background-color: #5A6268 !important;
+    }
+
+    div.stButton > button[kind="secondary"] {
+        background-color: #DC3545 !important;
+        color: #FFFFFF !important;
+        border: none !important;
+    }
+    div.stButton > button[kind="secondary"]:hover {
+        background-color: #BD2130 !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# アプリタイトル
+st.title("安小 就学時健診")
+
+if "step1_completed" not in st.session_state:
+    st.session_state.step1_completed = False
+
+# -----------------------------------------------------------------
+# 2. ヘルパー関数（フォント・カラー・マップ描画・会場ボタンHTML生成）
+# -----------------------------------------------------------------
+def render_venue_with_map_btn(label, venue_name):
+    """場所の文字と、スムーズに配置図へスクロールさせるボタン"""
+    cols = st.columns([0.7, 0.3], vertical_alignment="center")
+    with cols[0]:
+        st.markdown(
+            f'<p style="margin:0;"><span class="info-label">{label}：</span><span class="venue-large">{venue_name}</span></p>',
+            unsafe_allow_html=True
+        )
+    with cols[1]:
+        components.html(
+            """
+            <style>
+                body { margin: 0; padding: 0; background: transparent; }
+                .map-scroll-btn {
+                    background-color: #FFFDD0;
+                    color: #000000;
+                    font-size: 0.8rem;
+                    padding: 5px 10px;
+                    border: 1px solid #E0D8B0;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-weight: normal;
+                    width: 100%;
+                    box-sizing: border-box;
+                    white-space: nowrap;
+                    transition: background-color 0.2s ease;
+                }
+                .map-scroll-btn:hover {
+                    background-color: #F7F3B7;
+                }
+            </style>
+            <button class="map-scroll-btn" onclick="scrollToMap()">会場配置図</button>
+            <script>
+                function scrollToMap() {
+                    const doc = window.parent.document;
+                    const mapEl = doc.getElementById('map-section');
+                    if (mapEl) {
+                        mapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    } else {
+                        window.parent.scrollTo({
+                            top: doc.body.scrollHeight,
+                            behavior: 'smooth'
+                        });
+                    }
+                }
+            </script>
+            """,
+            height=36,
+        )
+
+def get_japanese_font(font_size=12):
+    font_paths = [
+        "fonts/NotoSansJP-Regular.ttf",
+        "./NotoSansJP-Regular.ttf",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/ipafont-gothic/ipag.ttf",
+        "/usr/share/fonts/truetype/fonts-japanese-gothic.ttf",
+        "C:\\Windows\\Fonts\\msgothic.ttc",
+        "/System/Library/Fonts/Hiragino Sans GB.ttc"
+    ]
+    for path in font_paths:
+        if os.path.exists(path):
+            try:
+                return ImageFont.truetype(path, font_size)
+            except Exception:
+                continue
+    return ImageFont.load_default()
+
+def hex_to_rgb(hex_str, default_color=(255, 255, 255)):
+    if not hex_str or not isinstance(hex_str, str) or not hex_str.startswith("#"):
+        return default_color
+    try:
+        hex_str = hex_str.lstrip("#")
+        if len(hex_str) == 6:
+            return tuple(int(hex_str[i:i+2], 16) for i in (0, 2, 4))
+    except Exception:
+        pass
+    return default_color
+
+def build_map_image(data_json):
+    if not isinstance(data_json, dict):
+        return None
+        
+    map_grid = data_json.get("map_design", [])
+    if not map_grid:
+        return None
+
+    map_bg = data_json.get("map_backgrounds")
+    map_halign = data_json.get("map_haligns")
+    map_valign = data_json.get("map_valigns")
+    map_borders = data_json.get("map_borders")
+    merged_ranges = data_json.get("map_merged_ranges")
+    row_heights = data_json.get("row_heights")
+    col_widths = data_json.get("col_widths")
+
+    rows = len(map_grid)
+    cols = max(len(r) for r in map_grid)
+
+    col_w_list = [int(col_widths[i]) if col_widths and i < len(col_widths) else 80 for i in range(cols)]
+    row_h_list = [int(row_heights[i]) if row_heights and i < len(row_heights) else 40 for i in range(rows)]
+
+    col_x = [10]
+    for w in col_w_list:
+        col_x.append(col_x[-1] + w)
+
+    row_y = [10]
+    for h in row_h_list:
+        row_y.append(row_y[-1] + h)
+
+    image = Image.new("RGB", (col_x[-1] + 10, row_y[-1] + 10), color=(255, 255, 255))
+    draw = ImageDraw.Draw(image)
+    font = get_japanese_font(12)
+
+    render_grid = [[True for _ in range(cols)] for _ in range(rows)]
+    merge_info_map = {}
+
+    if merged_ranges:
+        for m in merged_ranges:
+            if isinstance(m, dict):
+                r_s = m.get("row", 1) - 1
+                c_s = m.get("col", 1) - 1
+                num_r = m.get("numRows", 1)
+                num_c = m.get("numCols", 1)
+                merge_info_map[(r_s, c_s)] = (num_r, num_c)
+                for r in range(r_s, r_s + num_r):
+                    for c in range(c_s, c_s + num_c):
+                        if r < rows and c < cols:
+                            if not (r == r_s and c == c_s):
+                                render_grid[r][c] = False
+
+    for r in range(rows):
+        for c in range(cols):
+            if not render_grid[r][c]:
+                continue
+            num_r, num_c = merge_info_map.get((r, c), (1, 1))
+            x1, y1 = col_x[c], row_y[r]
+            x2, y2 = col_x[min(c + num_c, cols)], row_y[min(r + num_r, rows)]
+            cell_bg = hex_to_rgb(map_bg[r][c]) if map_bg and r < len(map_bg) and c < len(map_bg[r]) else (255, 255, 255)
+            draw.rectangle([x1, y1, x2, y2], fill=cell_bg)
+
+    for r in range(rows):
+        for c in range(cols):
+            if not render_grid[r][c]:
+                continue
+            num_r, num_c = merge_info_map.get((r, c), (1, 1))
+            x1, y1 = col_x[c], row_y[r]
+            x2, y2 = col_x[min(c + num_c, cols)], row_y[min(r + num_r, rows)]
+
+            if map_borders and r < len(map_borders) and c < len(map_borders[r]):
+                b = map_borders[r][c]
+                if isinstance(b, dict):
+                    if b.get("top"): draw.line([(x1, y1), (x2, y1)], fill=(0, 0, 0), width=2)
+                    if b.get("bottom"): draw.line([(x1, y2), (x2, y2)], fill=(0, 0, 0), width=2)
+                    if b.get("left"): draw.line([(x1, y1), (x1, y2)], fill=(0, 0, 0), width=2)
+                    if b.get("right"): draw.line([(x2, y1), (x2, y2)], fill=(0, 0, 0), width=2)
+
+            text = str(map_grid[r][c]).strip() if map_grid[r][c] is not None else ""
+            if text:
+                h_align = map_halign[r][c] if map_halign and r < len(map_halign) and c < len(map_halign[r]) else "center"
+                v_align = map_valign[r][c] if map_valign and r < len(map_valign) and c < len(map_valign[r]) else "middle"
+
+                bbox = draw.textbbox((0, 0), text, font=font)
+                text_w, text_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+                cell_w, cell_h = x2 - x1, y2 - y1
+
+                tx = x1 + 5 if h_align == "left" else (x2 - text_w - 5 if h_align == "right" else x1 + (cell_w - text_w) / 2)
+                ty = y1 + 3 if v_align == "top" else (y2 - text_h - 5 if v_align == "bottom" else y1 + (cell_h - text_h) / 2)
+
+                draw.text((tx, ty), text, fill=(0, 0, 0), font=font)
+
+    return image
+
+# -----------------------------------------------------------------
+# 3. データ保護ロジック
+# -----------------------------------------------------------------
+default_settings = pd.DataFrame([
+    {"step": 1, "item_name": "受付案内", "venue": "ひまわり 1", "details": "事前に送付された「お知らせ（桜色）」と「健康診断票（黄色）」をご用意ください。", "type": "reception"},
+    {"step": 2, "item_name": "視力検査", "venue": "家庭科室", "details": "お子様と一緒に検査を受けてください。", "type": "test"},
+    {"step": 2, "item_name": "聴力検査", "venue": "1-1、1-2、ひまわり 5", "details": "空いている教室から優先して受診してください。", "type": "test"},
+    {"step": 3, "item_name": "内科検診", "venue": "図工室", "details": "※受診前にお子様のお着替え（上半身を脱ぐ）が必要です。", "type": "doctor"},
+    {"step": 3, "item_name": "歯科検診", "venue": "4-1", "details": "歯科検診会場です。", "type": "doctor"},
+    {"step": 3, "item_name": "耳鼻科検診", "venue": "活動室南", "details": "耳鼻科検診会場です。", "type": "doctor"},
+    {"step": 4, "item_name": "眼科検診", "venue": "4-2", "details": "眼科検診会場です。", "type": "doctor"},
+    {"step": 4, "item_name": "教育相談", "venue": "ひまわり 2", "details": "※希望者のみ（待機場所：理科室）。", "type": "optional"},
+    {"step": 4, "item_name": "結果通知", "venue": "ひまわり 3", "details": "【全員必須】クリアファイルと健康診断票を提出してください。", "type": "final"}
+])
+
+@st.cache_resource
+def get_persistent_store():
+    return {"raw_data": None, "df_settings": None, "map_img": None}
+
+store = get_persistent_store()
+
+def load_data_force(force_refresh=False):
+    if not force_refresh and store["df_settings"] is not None:
+        return store["df_settings"], store["map_img"]
+
+    gas_url = st.secrets.get("gas_api_url")
+    if gas_url:
+        try:
+            res = requests.get(gas_url, timeout=15).json()
+            if isinstance(res, dict) and "settings" in res and isinstance(res["settings"], list) and len(res["settings"]) > 0:
+                store["raw_data"] = res
+                store["df_settings"] = pd.DataFrame(res["settings"]).fillna("")
+                store["map_img"] = build_map_image(res)
+                return store["df_settings"], store["map_img"]
+        except Exception:
+            pass
+
+    if store["df_settings"] is None:
+        return default_settings, None
+    return store["df_settings"], store["map_img"]
+
+df_settings, generated_map_img = load_data_force()
+
+# -----------------------------------------------------------------
+# 4. 画面描画（ナビゲーションコンテンツ）
+# -----------------------------------------------------------------
+steps_names = ["1. 受付", "2. 視力・聴力検査", "3. 医師検診", "4. 教育相談・結果通知", "5. 終了"]
+if st.session_state.step <= 5:
+    st.progress((st.session_state.step - 1) / 4.0)
+    st.caption(f"進捗状況: {steps_names[st.session_state.step - 1]}")
+
+if st.session_state.step == 1:
+    st.markdown('<p class="sub-step-title">【第1ステップ】</p>', unsafe_allow_html=True)
+    st.header("受付")
+    
+    reception_data = df_settings[df_settings["type"] == "reception"]
+    if not reception_data.empty:
+        info = reception_data.iloc[0]
+        
+        render_venue_with_map_btn("受付場所", info["venue"])
+        
+        st.markdown(
+            f'<p><span class="info-label">■ ご案内：</span>{info["details"]}</p>', 
+            unsafe_allow_html=True
+        )
+
+    st.write("")
+    st.markdown("<b>↓受付が済んだらタップしてください。</b>", unsafe_allow_html=True)
+    
+    btn_type = "secondary" if st.session_state.step1_completed else "primary"
+    st.markdown('<div id="reception-complete-btn"></div>', unsafe_allow_html=True)
+    
+    if st.button("受付を完了し、番号札とクリアファイルを受け取りました", type=btn_type):
+        st.session_state.step1_completed = True
+        st.session_state.step = 2
+        st.rerun()
+
+elif st.session_state.step == 2:
+    st.markdown('<p class="sub-step-title">【第2ステップ】</p>', unsafe_allow_html=True)
+    st.header("視力・聴力検査")
+    st.write("お子様と一緒に以下の検査会場へお回りください。空いている会場からお進みください。")
+    st.write("")
+
+    tests = df_settings[df_settings["type"] == "test"]
+    completed_status = {}
+
+    for idx, row in tests.iterrows():
+        st.divider()
+
+        st.markdown(f"### ■ {row['item_name']}")
+        
+        render_venue_with_map_btn("検査場所", row["venue"])
+        
+        st.markdown(
+            f'<p><span class="info-label">■ ご案内：</span>{row["details"]}</p>', 
+            unsafe_allow_html=True
+        )
+        st.write("")
+
+        st.markdown("<b>👇️受診が終わったらタップしてください。</b>", unsafe_allow_html=True)
+
+        btn_key = f"test_btn_{idx}"
+        if btn_key not in st.session_state:
+            st.session_state[btn_key] = False
+
+        is_done = st.session_state[btn_key]
+        completed_status[row['item_name']] = is_done
+
+        status_class = "test-status-selected" if is_done else "test-status-unselected"
+        st.markdown(f'<div class="{status_class}"></div>', unsafe_allow_html=True)
+
+        btn_label = f"✓ {row['item_name']}を受診完了（タップで解除）" if is_done else f"{row['item_name']}を受診した"
+
+        if st.button(btn_label, key=f"btn_act_{idx}"):
+            st.session_state[btn_key] = not is_done
+            st.rerun()
+
+    st.divider()
+    st.write("")
+
+    all_checked = all(completed_status.values())
+    st.markdown('<div id="next-step-btn-container"></div>', unsafe_allow_html=True)
+
+    if st.button("次のステップ（医師による検診）へ進む", disabled=not all_checked):
+        st.session_state.step = 3
+        st.rerun()
+
+elif st.session_state.step == 3:
+    st.markdown('<p class="sub-step-title">【第3ステップ】</p>', unsafe_allow_html=True)
+    st.header("医師による検診")
+    st.markdown(
+        '以下の検診をすべて受診してください。<span style="font-size: 1.15rem; font-weight: bold; color: #DC3545;">混雑状況を見て空いている会場からお回りください。</span>', 
+        unsafe_allow_html=True
+    )
+    st.write("")
+
+    doctors = df_settings[df_settings["type"] == "doctor"]
+    completed_status_doc = {}
+
+    for idx, row in doctors.iterrows():
+        st.divider()
+
+        st.markdown(f"### ■ {row['item_name']}")
+        
+        render_venue_with_map_btn("検診場所", row["venue"])
+        
+        st.markdown(
+            f'<p><span class="info-label">■ ご案内：</span>{row["details"]}</p>', 
+            unsafe_allow_html=True
+        )
+        st.write("")
+
+        st.markdown("<b>👇️受診が終わったらタップしてください。</b>", unsafe_allow_html=True)
+
+        btn_key = f"doc_btn_{idx}"
+        if btn_key not in st.session_state:
+            st.session_state[btn_key] = False
+
+        is_done = st.session_state[btn_key]
+        completed_status_doc[row['item_name']] = is_done
+
+        status_class = "test-status-selected" if is_done else "test-status-unselected"
+        st.markdown(f'<div class="{status_class}"></div>', unsafe_allow_html=True)
+
+        btn_label = f"✓ {row['item_name']}を受診完了（タップで解除）" if is_done else f"{row['item_name']}を受診した"
+
+        if st.button(btn_label, key=f"btn_doc_act_{idx}"):
+            st.session_state[btn_key] = not is_done
+            st.rerun()
+
+    st.divider()
+    st.write("")
+
+    all_doc_checked = all(completed_status_doc.values())
+    st.markdown('<div id="next-step-btn-container"></div>', unsafe_allow_html=True)
+
+    if st.button("次のステップ（教育相談・結果通知）へ進む", disabled=not all_doc_checked):
+        st.session_state.step = 4
+        st.rerun()
+
+elif st.session_state.step == 4:
+    st.markdown('<p class="sub-step-title">【第4ステップ】</p>', unsafe_allow_html=True)
+    st.header("教育相談・結果通知")
+    st.write("最後に、教育相談（希望者のみ）と結果通知の受け取りを行ってください。")
+    st.write("")
+
+    # --- 1. 教育相談 ---
+    opt_data = df_settings[df_settings["type"] == "optional"]
+    if not opt_data.empty:
+        opt_row = opt_data.iloc[0]
+        st.divider()
+        st.markdown(f"### ■ {opt_row['item_name']}")
+        
+        render_venue_with_map_btn("相談場所", opt_row["venue"])
+        
+        st.markdown(
+            f'<p><span class="info-label">■ ご案内：</span>{opt_row["details"]}</p>', 
+            unsafe_allow_html=True
+        )
+        st.write("")
+
+        st.markdown("<p style='font-size: 1.25rem; font-weight: bold;'>■ 教育相談の希望について：</p>", unsafe_allow_html=True)
+        st.markdown("<b>👇️どちらか該当する方をタップしてください。</b>", unsafe_allow_html=True)
+
+        if "opt_choice" not in st.session_state:
+            st.session_state["opt_choice"] = None
+
+        opt1_class = "test-status-selected" if st.session_state["opt_choice"] == "no" else "test-status-unselected"
+        st.markdown(f'<div class="{opt1_class}"></div>', unsafe_allow_html=True)
+        btn1_label = "✓ 希望しない / 相談は不要（選択中）" if st.session_state["opt_choice"] == "no" else "希望しない / 相談は不要"
+        if st.button(btn1_label, key="btn_opt_no"):
+            st.session_state["opt_choice"] = "no"
+            st.rerun()
+
+        st.write("")
+
+        opt2_class = "test-status-selected" if st.session_state["opt_choice"] == "yes" else "test-status-unselected"
+        st.markdown(f'<div class="{opt2_class}"></div>', unsafe_allow_html=True)
+        btn2_label = "✓ 希望し、面談が完了した（選択中）" if st.session_state["opt_choice"] == "yes" else "希望し、面談が完了した"
+        if st.button(btn2_label, key="btn_opt_yes"):
+            st.session_state["opt_choice"] = "yes"
+            st.rerun()
+
+    # --- 2. 結果通知 ---
+    final_data = df_settings[df_settings["type"] == "final"]
+    if not final_data.empty:
+        f_info = final_data.iloc[0]
+        st.divider()
+        st.markdown(f"### ■ {f_info['item_name']}")
+        
+        render_venue_with_map_btn("提出場所", f_info["venue"])
+        
+        st.markdown(
+            f'<p><span class="info-label">■ ご案内：</span>{f_info["details"]}</p>', 
+            unsafe_allow_html=True
+        )
+        st.write("")
+
+        st.markdown("<b>👇️受診・受取が終わったらタップしてください。</b>", unsafe_allow_html=True)
+
+        if "final_completed" not in st.session_state:
+            st.session_state["final_completed"] = False
+
+        is_final_done = st.session_state["final_completed"]
+        final_class = "test-status-selected" if is_final_done else "test-status-unselected"
+        st.markdown(f'<div class="{final_class}"></div>', unsafe_allow_html=True)
+
+        final_label = "✓ 結果通知を受け取り、全書類を提出完了（タップで解除）" if is_final_done else "結果通知を受け取り、すべての書類とクリアファイルを提出した"
+
+        if st.button(final_label, key="btn_final_act"):
+            st.session_state["final_completed"] = not is_final_done
+            st.rerun()
+
+    st.divider()
+    st.write("")
+
+    can_finish = (st.session_state.get("opt_choice") is not None) and st.session_state.get("final_completed", False)
+
+    st.markdown('<div id="next-step-btn-container"></div>', unsafe_allow_html=True)
+    if st.button("健診を終了する", disabled=not can_finish):
+        st.session_state.step = 5
+        st.rerun()
+
+elif st.session_state.step == 5:
+    st.balloons()
+    st.header("健診がすべて終了しました")
+    st.markdown("お疲れ様でした。気をつけてお帰りください。")
+
+# -----------------------------------------------------------------
+# 共通「前に戻る」ボタン（第2〜第5ステップで表示）
+# -----------------------------------------------------------------
+if st.session_state.step > 1:
+    st.write("")
+    st.markdown('<div id="back-step-btn-container"></div>', unsafe_allow_html=True)
+    if st.button("⬅️ 前のステップに戻る"):
+        st.session_state.step -= 1
+        st.rerun()
+
+# -----------------------------------------------------------------
+# 5. 会場配置図（一番下に常時表示・スクロール用アンカー付き）
+# -----------------------------------------------------------------
+st.divider()
+st.markdown('<div id="map-section"></div>', unsafe_allow_html=True)
+st.subheader("🗺️ 会場配置図")
+
+if generated_map_img:
+    st.image(generated_map_img, caption="校内会場配置図", use_container_width=True)
+else:
+    st.info("会場配置図を取得できませんでした。各案内の会場情報をご確認ください。")
+
+# -----------------------------------------------------------------
+# 管理用サイドバー
+# -----------------------------------------------------------------
+with st.sidebar:
+    if st.button("🔄 マップ・設定を最新に更新"):
+        load_data_force(force_refresh=True)
+        st.rerun()
 
 # -----------------------------------------------------------------
 # 1. ページの設定
