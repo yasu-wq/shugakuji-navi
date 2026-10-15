@@ -1,4 +1,5 @@
 import os
+import base64
 import requests
 import pandas as pd
 import streamlit as st
@@ -693,7 +694,34 @@ elif st.session_state.step == 4:
         st.rerun()
 
 elif st.session_state.step == 5:
-    st.balloons()
+    # --- 安かっぱくんGIFアニメーション（3秒後にJavaScriptでフェードアウト消失） ---
+    gif_path = "安かっぱくん_12コマ透過.gif"
+    
+    if os.path.exists(gif_path):
+        with open(gif_path, "rb") as f:
+            b64_data = base64.b64encode(f.read()).decode("utf-8")
+        
+        components.html(
+            f"""
+            <div id="kappa-gif-container" style="text-align: center; padding: 10px; transition: opacity 0.8s ease;">
+                <img src="data:image/gif;base64,{b64_data}" style="max-width: 250px; height: auto;" alt="安かっぱくん" />
+            </div>
+
+            <script>
+                setTimeout(function() {{
+                    const container = document.getElementById('kappa-gif-container');
+                    if (container) {{
+                        container.style.opacity = '0';
+                        setTimeout(function() {{
+                            container.style.display = 'none';
+                        }}, 800);
+                    }}
+                }}, 3000);
+            </script>
+            """,
+            height=280
+        )
+
     st.header("健診がすべて終了しました")
     st.markdown("お疲れ様でした。気をつけてお帰りください。")
 
