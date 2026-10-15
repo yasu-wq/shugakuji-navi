@@ -48,7 +48,7 @@ if st.session_state.last_scrolled_step != st.session_state.step:
         height=0,
     )
 
-# 下部バッジ・王冠アイコン・StreamlitリンクをDOMから物理削除するJavaScript
+# 下部バッジ・Streamlit要素の非表示化スクリプト
 st.html("""
 <script>
     function removeStreamlitBadges() {
@@ -65,10 +65,7 @@ st.html("""
         ];
 
         selectors.forEach(selector => {
-            // 現在のフレーム内から削除
             document.querySelectorAll(selector).forEach(el => el.remove());
-
-            // 親フレーム（Community Cloudのホスト枠）から物理削除・無効化
             try {
                 if (window.parent && window.parent.document) {
                     window.parent.document.querySelectorAll(selector).forEach(el => el.remove());
@@ -113,7 +110,7 @@ st.markdown("""
         }
     }
 
-    /* 2. 下部バッジ・リンクの徹底的な非表示およびタップ無効化 */
+    /* 2. 下部バッジ・リンクの徹底的な非表示 */
     footer,
     [data-testid="stStatusWidget"],
     .viewerBadge_container__1S-td,
@@ -134,7 +131,7 @@ st.markdown("""
         width: 0 !important;
     }
 
-    /* 【第1・第2ステップ】などの小さな見出し用スタイル */
+    /* タイトル・各種スタイル */
     .sub-step-title {
         font-size: 1.1rem !important;
         font-weight: bold;
@@ -142,7 +139,6 @@ st.markdown("""
         margin-bottom: 0px;
     }
     
-    /* 「受付場所」「検査場所」「ご案内」インラインスタイル */
     .info-label {
         font-size: 1.1rem;
         font-weight: bold;
@@ -153,14 +149,14 @@ st.markdown("""
         color: #1E3A8A;
     }
 
-    /* ボタンの基本設定 */
+    /* ボタン共通スタイル */
     div.stButton > button {
         width: 100%;
         border-radius: 8px !important;
         transition: all 0.3s ease;
     }
 
-    /* 第1ステップ：「受付を完了し…」専用の特大ボタンテキスト */
+    /* 第1ステップ特大ボタン */
     div.element-container:has(#reception-complete-btn) + div.element-container div.stButton > button {
         font-size: 1.4rem !important;
         font-weight: 800 !important;
@@ -168,7 +164,7 @@ st.markdown("""
         line-height: 1.4 !important;
     }
 
-    /* 各検査・検診・完了ボタン（タップ前：薄青 / タップ後：赤） */
+    /* 検査ボタン（未選択：水色 / 選択済み：赤） */
     div.element-container:has(.test-status-unselected) + div.element-container div.stButton > button {
         background-color: #93C5FD !important;
         color: #1E3A8A !important;
@@ -194,14 +190,13 @@ st.markdown("""
         background-color: #BD2130 !important;
     }
 
-    /* 「次のステップへ進む」「健診を終了する」ボタン（全状態特大サイズ統一） */
+    /* 「次へ進む」ボタン */
     div.element-container:has(#next-step-btn-container) + div.element-container div.stButton > button {
         font-size: 1.35rem !important;
         font-weight: 800 !important;
         padding: 1.1rem 1rem !important;
     }
 
-    /* チェック前（無効時）：青色ベース */
     div.element-container:has(#next-step-btn-container) + div.element-container div.stButton > button:disabled {
         background-color: #93C5FD !important;
         color: #FFFFFF !important;
@@ -209,7 +204,6 @@ st.markdown("""
         border: none !important;
     }
 
-    /* チェック完了後（有効時）：赤色ベース */
     div.element-container:has(#next-step-btn-container) + div.element-container div.stButton > button:not(:disabled) {
         background-color: #DC3545 !important;
         color: #FFFFFF !important;
@@ -220,7 +214,7 @@ st.markdown("""
         background-color: #BD2130 !important;
     }
 
-    /* 「前のステップに戻る」ボタン専用（グレー背景） */
+    /* 「戻る」ボタン */
     div.element-container:has(#back-step-btn-container) + div.element-container div.stButton > button {
         background-color: #6C757D !important;
         color: #FFFFFF !important;
@@ -233,7 +227,6 @@ st.markdown("""
         background-color: #5A6268 !important;
     }
 
-    /* 未タップ状態（グレーボタン） */
     div.stButton > button[kind="primary"] {
         background-color: #6C757D !important;
         color: #FFFFFF !important;
@@ -243,7 +236,6 @@ st.markdown("""
         background-color: #5A6268 !important;
     }
 
-    /* タップ完了後状態（赤色ボタン） */
     div.stButton > button[kind="secondary"] {
         background-color: #DC3545 !important;
         color: #FFFFFF !important;
@@ -265,7 +257,10 @@ if "step1_completed" not in st.session_state:
 # 2. ヘルパー関数（フォント・カラー・マップ描画）
 # -----------------------------------------------------------------
 def get_japanese_font(font_size=12):
+    # アプリ内にフォントを配置する場合のパスを先頭に追加
     font_paths = [
+        "fonts/NotoSansJP-Regular.ttf",
+        "./NotoSansJP-Regular.ttf",
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
         "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
         "/usr/share/fonts/truetype/ipafont-gothic/ipag.ttf",
