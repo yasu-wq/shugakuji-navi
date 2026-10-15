@@ -91,6 +91,11 @@ st.html("""
 # カスタムCSS（デザイン）
 st.markdown("""
     <style>
+    /* スムーズスクロールの設定 */
+    html {
+        scroll-behavior: smooth;
+    }
+
     /* 1. 上部ヘッダー・バーの完全非表示と余白カット */
     .stAppToolbar, 
     header[data-testid="stHeader"],
@@ -158,21 +163,24 @@ st.markdown("""
         margin-bottom: 8px;
     }
 
-    /* 会場配置図ボタン（クリーム色・文字黒・小さめ） */
-    .map-scroll-btn {
+    /* 会場配置図リンクボタン（クリーム色・文字黒・小さめ） */
+    a.map-scroll-btn {
         background-color: #FFFDD0 !important;
         color: #000000 !important;
         font-size: 0.8rem !important;
         padding: 4px 10px !important;
         border: 1px solid #E0D8B0 !important;
         border-radius: 6px !important;
-        cursor: pointer !important;
+        text-decoration: none !important;
+        display: inline-block !important;
         font-weight: normal !important;
         line-height: 1.2 !important;
         transition: background-color 0.2s ease;
     }
-    .map-scroll-btn:hover {
+    a.map-scroll-btn:hover {
         background-color: #F7F3B7 !important;
+        color: #000000 !important;
+        text-decoration: none !important;
     }
 
     /* ボタン共通スタイル */
@@ -283,14 +291,11 @@ if "step1_completed" not in st.session_state:
 # 2. ヘルパー関数（フォント・カラー・マップ描画・会場ボタンHTML生成）
 # -----------------------------------------------------------------
 def render_venue_with_map_btn(label, venue_name):
-    """検査場所の表記と会場配置図スクロールボタンを横並びで描画するHTML"""
+    """検査場所の表記と会場配置図アンカーリンクボタン（target="_self"付き）"""
     html_code = f"""
     <div class="venue-container">
         <span><span class="info-label">{label}：</span><span class="venue-large">{venue_name}</span></span>
-        <button class="map-scroll-btn" onclick="
-            const el = window.parent.document.getElementById('map-section');
-            if (el) {{ el.scrollIntoView({{ behavior: 'smooth' }}); }}
-        ">会場配置図</button>
+        <a href="#map-section" target="_self" class="map-scroll-btn">会場配置図</a>
     </div>
     """
     st.markdown(html_code, unsafe_allow_html=True)
@@ -700,8 +705,8 @@ if st.session_state.step > 1:
 # 5. 会場配置図（一番下に常時表示・スクロール用アンカー付き）
 # -----------------------------------------------------------------
 st.divider()
-# スクロール移動先用のアンカータグ
-st.markdown('<div id="map-section"></div>', unsafe_allow_html=True)
+# スクロール移動先用のアンカー要素（名前・ID両方を付与）
+st.markdown('<div id="map-section"></div><a name="map-section"></a>', unsafe_allow_html=True)
 st.subheader("🗺️ 会場配置図")
 
 if generated_map_img:
