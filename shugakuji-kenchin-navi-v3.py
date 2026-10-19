@@ -694,7 +694,7 @@ elif st.session_state.step == 4:
         st.rerun()
 
 elif st.session_state.step == 5:
-    # --- 安かっぱくんGIFアニメーション（3秒後にJavaScriptでフェードアウト消失） ---
+    # --- かっぱおじぎGIFアニメーション（最前面レイヤーで表示後、3秒後にレイヤーごと削除） ---
     gif_path = "かっぱおじぎ.gif"
     
     if os.path.exists(gif_path):
@@ -703,23 +703,47 @@ elif st.session_state.step == 5:
         
         components.html(
             f"""
-            <div id="kappa-gif-container" style="text-align: center; padding: 10px; transition: opacity 0.8s ease;">
-                <img src="data:image/gif;base64,{b64_data}" style="max-width: 250px; height: auto;" alt="安かっぱくん" />
-            </div>
-
             <script>
+                const doc = window.parent.document;
+                
+                // 最前面レイヤー（オーバーレイ）の作成
+                const overlay = doc.createElement('div');
+                overlay.id = 'kappa-overlay-layer';
+                overlay.style.position = 'fixed';
+                overlay.style.top = '0';
+                overlay.style.left = '0';
+                overlay.style.width = '100vw';
+                overlay.style.height = '100vh';
+                overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.4)';
+                overlay.style.zIndex = '99999';
+                overlay.style.display = 'flex';
+                overlay.style.justifyContent = 'center';
+                overlay.style.alignItems = 'center';
+                overlay.style.transition = 'opacity 0.8s ease';
+                overlay.style.opacity = '1';
+
+                // 画像エレメントの追加
+                const img = doc.createElement('img');
+                img.src = 'data:image/gif;base64,{b64_data}';
+                img.style.maxWidth = '280px';
+                img.style.maxHeight = '80vh';
+                img.style.height = 'auto';
+
+                overlay.appendChild(img);
+                doc.body.appendChild(overlay);
+
+                // 3秒（3000ms）後にフェードアウトして最前面レイヤーを削除
                 setTimeout(function() {{
-                    const container = document.getElementById('kappa-gif-container');
-                    if (container) {{
-                        container.style.opacity = '0';
-                        setTimeout(function() {{
-                            container.style.display = 'none';
-                        }}, 800);
-                    }}
+                    overlay.style.opacity = '0';
+                    setTimeout(function() {{
+                        if (overlay.parentNode) {{
+                            overlay.parentNode.removeChild(overlay);
+                        }}
+                    }}, 800);
                 }}, 3000);
             </script>
             """,
-            height=280
+            height=0
         )
 
     st.header("健診がすべて終了しました")
