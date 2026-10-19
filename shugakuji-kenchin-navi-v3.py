@@ -695,7 +695,7 @@ elif st.session_state.step == 4:
 
 elif st.session_state.step == 5:
     # --- 安かっぱくんGIFアニメーション（3秒後にJavaScriptでフェードアウト消失） ---
-    gif_path = "安かっぱくん_12コマ透過.gif"
+    gif_path = "かっぱおじぎ.gif"
     
     if os.path.exists(gif_path):
         with open(gif_path, "rb") as f:
